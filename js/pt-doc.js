@@ -1,0 +1,618 @@
+/* pt-doc.js — Proiect Tehnic document engine (PT-SPEC.md, Phase PT-1).
+
+   PTDoc.build(hostEl, lang) renders the whole document as a sequence of explicit A4 page
+   boxes (D7: browsers lack @page margin boxes, so WE own the per-page header strip
+   "Cod | MEMORIU TEHNIC | Ediția/Revizia | Pag. X/Y" and the page breaks). Flow:
+
+     1. collect values from the Project state (one pass, pure);
+     2. chapters (registry below) emit BLOCKS: {html} | {table:{head,rows}} splittable with
+        repeated header | {canvas:{h,mount}} for Chart.js | {pageBreak};
+     3. paginator appends blocks to the current .pt-body, measuring overflow; tables split
+        row-by-row, a block never straddles a page;
+     4. pass 2 fills page numbers, the cuprins (data-pt-toc) and borderou page counts
+        (data-pt-bord) — all fixed-size cells, so pagination stays stable;
+     5. chart mounts run last (animation off, fixed pixel size).
+
+   Prose comes from PT_TEXT_RO / PT_TEXT_EN ({placeholder} substitution); a missing value
+   renders as a red [de completat] and is reported in build().missing (pre-flight).
+   Depends on: Project, MODULE_LIST/INVERTER_LIST (string-ui.js), Chart.js, fnum-style
+   formatting (local), PT_TEXT_* (pt-text-ro.js / pt-text-en.js). */
+
+var PTDoc = (function () {
+  'use strict';
+
+  var CONTENT_W = 700;            // px, chart width inside the page body
+  var MISS_CLS = 'pt-miss';
+
+  var _lang, _missing, _mounts, _pages, _host, _curBody, _sections, _chapStart;
+
+  function fnum(v) { return (+v).toFixed(2).replace(/\.?0+$/, ''); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  /* ── text access with RO fallback ── */
+  function txt(path) {
+    var roots = [(_lang === 'en' ? window.PT_TEXT_EN : window.PT_TEXT_RO), window.PT_TEXT_RO];
+    for (var r = 0; r < roots.length; r++) {
+      var cur = roots[r], parts = path.split('.');
+      for (var i = 0; i < parts.length && cur != null; i++) cur = cur[parts[i]];
+      if (cur != null) return cur;
+    }
+    return path;
+  }
+  function missTag() { return '<span class="' + MISS_CLS + '">' + esc(txt('common.missing')) + '</span>'; }
+
+  /* substitute {key}; empty/null values become the red missing marker + pre-flight entry */
+  function sub(tpl, vals, chapter) {
+    return String(tpl).replace(/\{(\w+)\}/g, function (_, k) {
+      var v = vals[k];
+      if (v == null || v === '') {
+        _missing.push({ chapter: chapter, field: k });
+        return missTag();
+      }
+      return esc(String(v));
+    });
+  }
+
+  /* ── value collection (one pass over the Project state) ── */
+  function modById(id) { return (typeof MODULE_LIST !== 'undefined' ? MODULE_LIST : []).find(function (m) { return m.id === id; }) || null; }
+  function invById(id) { return (typeof INVERTER_LIST !== 'undefined' ? INVERTER_LIST : []).find(function (i) { return i.id === id; }) || null; }
+
+  function collect() {
+    var st = Project.get();
+    var meta = st.meta || {}, ben = meta.beneficiar || {}, pro = meta.proiectant || {}, ver = meta.verificator || {};
+    var grid = st.grid || {}, loc = st.location || {}, cons = st.consumption || {};
+    var sizing = st.sizing || {}, comp = st.components || {}, ss = st.stringSizing || {};
+    var strings = Array.isArray(st.strings) ? st.strings : [];
+
+    var nrModule = strings.reduce(function (a, s) { return a + (s.count || 0); }, 0);
+    var kwpCalc = strings.reduce(function (a, s) { var m = modById(s.moduleId); return a + (m ? m.pmax * (s.count || 0) : 0); }, 0) / 1000;
+    var kwp = kwpCalc || sizing.pvgisKwp || null;
+    var anual = sizing.annualProdKwh || null;
+    var inv = invById(comp.inverterId);
+    var mod0 = strings.length ? modById(strings[0].moduleId) : null;
+    var consAnual = grid.consumAnualKwh != null ? grid.consumAnualKwh : cons.annualKwh;
+    var tmin = ss.tmin != null ? ss.tmin : (ss.tamin != null ? ss.tamin : null);   // cell/ambient min for Voc,cold
+    var locale = _lang === 'en' ? 'en-GB' : 'ro-RO';
+    var catNames = { A: _lang === 'en' ? 'exceptional' : 'excepțională', B: _lang === 'en' ? 'special' : 'deosebită',
+                     C: _lang === 'en' ? 'normal' : 'normală', D: _lang === 'en' ? 'reduced' : 'redusă' };
+
+    var perString = strings.map(function (s, i) {
+      var m = modById(s.moduleId);
+      var np = s.np || 1;
+      var ns = s.ns || (s.count && np ? Math.round(s.count / np) : null);
+      var vocCold = (m && ns != null && tmin != null)
+        ? ns * m.voc * (1 + (m.lv / 100) * (tmin - 25)) : null;
+      return {
+        label: 'S' + (i + 1),
+        modName: m ? m.name.replace(/\s*\(.*\)$/, '') : null,
+        cfg: ns != null ? (ns + '×' + np) : (s.count || '?'),
+        p: m ? m.pmax * (s.count || 0) : null,
+        imp: m ? m.imp * np : null,
+        ump: (m && ns != null) ? m.vmp * ns : null,
+        isc: m ? m.isc * np : null,
+        vocCold: vocCold,
+        ba: (s.tilt != null ? fnum(s.tilt) : '?') + ' / ' + (s.azimuth != null ? fnum(s.azimuth) : '?'),
+        official: !!(s.usePvgis && s.pvgisRef),
+      };
+    });
+
+    return {
+      meta: meta, grid: grid, sizing: sizing, cons: cons, strings: strings, perString: perString,
+      v: {  // flat substitution map
+        kwp: kwp != null ? fnum(kwp) : null,
+        nrModule: nrModule || null,
+        anualKwh: anual != null ? Math.round(anual).toLocaleString(locale) : null,
+        specYield: (anual && kwp) ? Math.round(anual / kwp) : null,
+        co2: anual ? Math.round(anual * 0.265).toLocaleString(locale) : null,
+        adresaObiectiv: meta.address || null,
+        beneficiarFirma: ben.firma || null,
+        beneficiarAdresa: ben.adresa || null,
+        proiectantFirma: pro.firma || null,
+        proiectantNume: pro.nume || null,
+        proiectantAdresa: pro.adresa || null,
+        atestatSocietate: pro.atestatSocietate || null,
+        atestatProiectant: pro.atestatProiectant || null,
+        faza: meta.faza || null,
+        categoria: meta.categoriaImportanta || null,
+        categoriaNume: meta.categoriaImportanta ? (catNames[meta.categoriaImportanta] || null) : null,
+        tensiune: grid.tensiuneRacord != null ? fnum(grid.tensiuneRacord) : null,
+        tablou: grid.tablouRacord || null,
+        ptAlimentare: grid.ptAlimentare || null,
+        consumAnual: consAnual != null ? Math.round(consAnual).toLocaleString(locale) : null,
+        lat: loc.lat != null ? fnum(loc.lat) : null,
+        lon: loc.lon != null ? fnum(loc.lon) : null,
+        alt: loc.elevation != null ? Math.round(loc.elevation) : null,
+        tamin: ss.tamin != null ? fnum(ss.tamin) : null,
+        tamax: ss.tamax != null ? fnum(ss.tamax) : null,
+        modulNume: mod0 ? mod0.name.replace(/\s*\(.*\)$/, '') : null,
+        modulPmax: mod0 ? mod0.pmax : null,
+        invNume: inv ? inv.name : null,
+        nrInv: inv ? 1 : null,
+        domeniu: ver.domeniu || null,
+        verificatorNume: ver.nume || null,
+        verificatorAtestat: ver.atestat || null,
+        projectName: meta.projectName || null,
+        codDoc: meta.codDoc || null,
+        editie: meta.editie != null ? meta.editie : null,
+        revizie: meta.revizie != null ? meta.revizie : null,
+        data: meta.dataIntocmirii ? new Date(meta.dataIntocmirii).toLocaleDateString(locale) : null,
+      },
+    };
+  }
+
+  /* ── page machinery ── */
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  function headStrip(v) {
+    return '<table class="pt-headtbl"><tr>' +
+      '<td class="ph-l">' + esc(txt('common.cod')) + ': ' + (v.codDoc ? esc(v.codDoc) : '-') + '</td>' +
+      '<td class="ph-c"><b>' + esc(txt('common.docTitle')) + '</b><br>' + (v.projectName ? esc(v.projectName) : missTag()) + '</td>' +
+      '<td class="ph-r">' + esc(txt('common.editia')) + ': ' + (v.editie != null ? esc(String(v.editie)) : '-') + ' · ' + esc(txt('common.revizia')) + ': ' + (v.revizie != null ? esc(String(v.revizie)) : '-') +
+        '<br>' + esc(txt('common.pag')) + ' <span class="pt-pagno"></span></td>' +
+      '</tr></table>';
+  }
+
+  function newPage(bare, v) {
+    var pg = el('div', 'pt-page' + (bare ? ' pt-bare' : ''));
+    if (!bare) pg.appendChild(el('div', 'pt-head', headStrip(v)));
+    var body = el('div', 'pt-body');
+    pg.appendChild(body);
+    _host.appendChild(pg);
+    _pages.push(pg);
+    _curBody = body;
+    return body;
+  }
+
+  function fits() { return _curBody.scrollHeight <= _curBody.clientHeight + 1; }
+
+  function makeTable(t) {
+    var html = '<thead><tr>' + t.head.map(function (h, i) {
+      return '<th' + (t.widths && t.widths[i] ? ' style="width:' + t.widths[i] + '"' : '') + '>' + h + '</th>';
+    }).join('') + '</tr></thead><tbody></tbody>';
+    return el('table', 'pt-tbl ' + (t.cls || ''), html);
+  }
+
+  function addTable(t, v) {
+    var tbl = makeTable(t);
+    _curBody.appendChild(tbl);
+    if (!fits()) { _curBody.removeChild(tbl); newPage(false, v); _curBody.appendChild(tbl); }
+    var tb = tbl.tBodies[0];
+    t.rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = r.map(function (c) { return '<td>' + c + '</td>'; }).join('');
+      if (r._attr) Object.keys(r._attr).forEach(function (k) { tr.setAttribute(k, r._attr[k]); });
+      tb.appendChild(tr);
+      if (!fits()) {                       // split: move the row to a fresh table on a new page
+        tb.removeChild(tr);
+        if (!tb.rows.length) tbl.parentNode.removeChild(tbl);
+        newPage(false, v);
+        tbl = makeTable(t); _curBody.appendChild(tbl); tb = tbl.tBodies[0];
+        tb.appendChild(tr);
+      }
+    });
+  }
+
+  /* a full-page LANDSCAPE plate (the single-line schematic): the page stays portrait A4, the drawing
+     is rotated 90° to fill it (CSS .pt-plate-rot). A plate is exactly one page - no fit/measure. The
+     SVG carries its OWN cartouche/title block, so the page is bare (no header strip). */
+  function addPlate(plate) {
+    var pg = _curBody.parentNode;
+    if (pg) pg.classList.add('pt-plate-page');
+    var wrap = el('div', 'pt-plate');
+    if (plate.svg) {
+      wrap.appendChild(el('div', 'pt-plate-rot', plate.svg));
+    } else {
+      wrap.appendChild(el('div', 'pt-plate-miss', esc(plate.missing || '')));
+    }
+    _curBody.appendChild(wrap);
+  }
+
+  function addBlock(b, v) {
+    if (b.pageBreak) { newPage(!!b.bare, v); return; }
+    if (b.plate) { addPlate(b.plate); return; }
+    if (b.table) { addTable(b.table, v); return; }
+    var node;
+    if (b.canvas) {
+      node = el('div', 'pt-chart');
+      var c = document.createElement('canvas');
+      c.width = CONTENT_W; c.height = b.canvas.h || 280;
+      c.style.width = CONTENT_W + 'px'; c.style.height = (b.canvas.h || 280) + 'px';
+      node.appendChild(c);
+      if (b.canvas.caption) node.appendChild(el('div', 'pt-caption', esc(b.canvas.caption)));
+      _mounts.push({ canvas: c, mount: b.canvas.mount });
+    } else {
+      node = el('div', null, b.html);
+    }
+    _curBody.appendChild(node);
+    if (!fits()) {
+      _curBody.removeChild(node);
+      newPage(false, v);
+      _curBody.appendChild(node);          // a single block taller than a page stays (rare; visible overflow)
+    }
+  }
+
+  /* ── chart configs (the graphs carried over from the retired client PDF) ── */
+  var MN_RO = ['Ian','Feb','Mar','Apr','Mai','Iun','Iul','Aug','Sep','Oct','Noi','Dec'];
+  var MN_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function mnames() { return _lang === 'en' ? MN_EN : MN_RO; }
+  function chartOpts(stacked) {
+    return { responsive: false, animation: false,
+      plugins: { legend: { display: true, labels: { color: '#444', boxWidth: 12, font: { size: 10 } } } },
+      scales: { x: { stacked: stacked, grid: { color: '#eee' }, ticks: { color: '#555', font: { size: 10 } } },
+                y: { stacked: stacked, grid: { color: '#eee' }, ticks: { color: '#555', font: { size: 10 } } } } };
+  }
+  function mountBarProd(byString, totals) {
+    return function (c) {
+      var ds = (byString && byString.length)
+        ? byString.map(function (s) { return { label: s.label, data: s.monthly, backgroundColor: s.color, stack: 'kwh', borderRadius: 2 }; })
+        : [{ label: 'kWh', data: totals, backgroundColor: '#e8842c', borderRadius: 2 }];
+      new Chart(c, { type: 'bar', data: { labels: mnames(), datasets: ds }, options: chartOpts(true) });
+    };
+  }
+  function mountCvP(cons, prod) {
+    return function (c) {
+      new Chart(c, { type: 'bar', data: { labels: mnames(), datasets: [
+        { label: _lang === 'en' ? 'Consumption' : 'Consum', data: cons, backgroundColor: '#7da7d9', borderRadius: 2 },
+        { label: _lang === 'en' ? 'Production' : 'Producție', data: prod, backgroundColor: '#e8842c', borderRadius: 2 },
+      ] }, options: chartOpts(false) });
+    };
+  }
+  function mountDaily(daily) {
+    return function (c) {
+      var ds = daily.series.map(function (s) {
+        return { label: s.label, data: s.power, borderColor: s.color, backgroundColor: s.color,
+                 borderWidth: 1.5, pointRadius: 0, tension: 0.35, fill: false };
+      });
+      new Chart(c, { type: 'line', data: { labels: daily.hours, datasets: ds },
+        options: { responsive: false, animation: false,
+          plugins: { legend: { display: ds.length > 1, labels: { color: '#444', boxWidth: 12, font: { size: 10 } } } },
+          scales: { x: { grid: { color: '#eee' }, ticks: { color: '#555', font: { size: 10 },
+                     callback: function (val, i) { var h = daily.hours[i]; return h % 2 === 0 ? h + 'h' : ''; } } },
+                    y: { grid: { color: '#eee' }, ticks: { color: '#555', font: { size: 10 } } } } } });
+    };
+  }
+
+  /* ── chapter builders — each returns an array of blocks ── */
+  function h2(numAndTitle) { return { html: '<h2 class="pt-h2">' + numAndTitle + '</h2>' }; }
+  function h3(t) { return { html: '<h3 class="pt-h3">' + t + '</h3>' }; }
+  function p(html) { return { html: '<p class="pt-p">' + html + '</p>' }; }
+  function ul(items) { return { html: '<ul class="pt-ul">' + items.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul>' }; }
+
+  function buildChapters(C) {
+    var v = C.v, S = function (tpl, ch) { return sub(tpl, v, ch); };
+    var chapters = [];
+    var num = 0;
+    function chap(id, opts) { var c = Object.assign({ id: id, blocks: [] }, opts || {}); chapters.push(c); return c; }
+
+    /* 0 — cover (bare page) */
+    var cover = chap('cover', { bare: true, pageBreak: false });
+    cover.blocks.push({ html:
+      '<div class="pt-cover">' +
+        '<div class="pt-cv-pre">' + esc(txt('cover.titlePre')) + '</div>' +
+        '<div class="pt-cv-title">' + S(txt('cover.titleTpl'), 'cover') + '</div>' +
+        '<div class="pt-cv-spec">' + esc(txt('cover.spec')) + '</div>' +
+        '<table class="pt-cv-tbl">' +
+          [['lblBeneficiar', v.beneficiarFirma], ['lblAdresa', v.adresaObiectiv],
+           ['lblProiectant', v.proiectantFirma ? (v.proiectantFirma + (v.proiectantNume ? ' - ' + v.proiectantNume : '')) : null],
+           ['lblFaza', v.faza], ['lblData', v.data]].map(function (r) {
+            var val = r[1];
+            if (val == null || val === '') { _missing.push({ chapter: 'cover', field: r[0] }); val = null; }
+            return '<tr><td>' + esc(txt('cover.' + r[0])) + '</td><td>' + (val != null ? esc(val) : missTag()) + '</td></tr>';
+          }).join('') +
+        '</table>' +
+        (txt('common.legalNote') ? '<div class="pt-cv-note">' + esc(txt('common.legalNote')) + '</div>' : '') +
+      '</div>' });
+
+    /* borderou + lista semnături */
+    var bord = chap('borderou', { pageBreak: true });
+    bord.blocks.push(h2(txt('borderou.title')));
+    var bordRows = [];
+    bordRows.push(['1', esc(txt('borderou.memoriu')), v.codDoc ? esc(v.codDoc) : missTag(), '<span data-pt-bord="memoriu"></span>', 'A4']);
+    bordRows.push(['2', esc(txt('borderou.anexa1')), 'BC-01', '<span data-pt-bord="anexa1"></span>', 'A4']);
+    txt('borderou.planse').forEach(function (pl, i) {
+      bordRows.push([String(3 + i), esc(pl[0]), esc(pl[1]), '1', esc(pl[2])]);
+    });
+    bord.blocks.push({ table: { head: txt('borderou.cols').map(esc), rows: bordRows,
+      widths: ['8%', '46%', '18%', '12%', '16%'] } });
+    bord.blocks.push(h2(txt('semnaturi.title')));
+    bord.blocks.push({ table: { head: txt('semnaturi.cols').map(esc), rows: [
+      [esc(txt('semnaturi.rows.atestatSoc')), v.proiectantFirma ? esc(v.proiectantFirma) : missTag(), v.atestatSocietate ? esc(v.atestatSocietate) : missTag(), ''],
+      [esc(txt('semnaturi.rows.proiectant')), v.proiectantNume ? esc(v.proiectantNume) : missTag(), v.atestatProiectant ? esc(v.atestatProiectant) : missTag(), ''],
+      [S(txt('semnaturi.rows.verificator'), 'semnaturi'), v.verificatorNume ? esc(v.verificatorNume) : missTag(), v.verificatorAtestat ? esc(v.verificatorAtestat) : missTag(), ''],
+    ], widths: ['30%', '26%', '28%', '16%'], cls: 'pt-sigtbl' } });
+    bord.blocks.push(p('<i>' + esc(txt('semnaturi.note')) + '</i>'));
+
+    /* 1 — atestate (placeholder) */
+    num++;
+    var at = chap('atestate', { pageBreak: true, num: num, title: txt('atestate.title') });
+    at.blocks.push(h2(num + ' ' + esc(txt('atestate.title'))));
+    at.blocks.push(h3(num + '.1 ' + esc(txt('atestate.s1')) + ' · ' + num + '.2 ' + esc(txt('atestate.s2'))));
+    at.blocks.push(p(S(txt('atestate.body'), 'atestate')));
+
+    /* cuprins (filled in pass 2) */
+    var toc = chap('cuprins', { pageBreak: true });
+    toc.blocks.push(h2(txt('cuprins.title')));
+    // rows added at the end of buildChapters when all numbered chapters are known
+
+    /* 2 — date generale */
+    num++;
+    var dg = chap('dategen', { num: num, title: txt('dategen.title'), pageBreak: true });
+    dg.blocks.push(h2(num + ' ' + esc(txt('dategen.title'))));
+    txt('dategen.s').forEach(function (s, i) {
+      dg.blocks.push(h3(num + '.' + (i + 1) + ' ' + esc(s[0])));
+      dg.blocks.push(p(S(s[1], 'dategen')));
+    });
+
+    /* 3 — necesitatea */
+    num++;
+    var nec = chap('necesitate', { num: num, title: txt('necesitate.title'), pageBreak: true });
+    nec.blocks.push(h2(num + ' ' + esc(txt('necesitate.title'))));
+    nec.blocks.push(h3(num + '.1 ' + esc(txt('necesitate.s1title'))));
+    nec.blocks.push(p(S(txt('necesitate.p1'), 'necesitate')));
+    nec.blocks.push(p(S(txt('necesitate.p2'), 'necesitate')));
+    nec.blocks.push(h3(num + '.2 ' + esc(txt('necesitate.s2title'))));
+    nec.blocks.push(p(S(txt('necesitate.p3'), 'necesitate')));
+    nec.blocks.push(h3(num + '.3 ' + esc(txt('necesitate.s3title'))));
+    nec.blocks.push(p(S(txt('necesitate.p4'), 'necesitate')));
+    nec.blocks.push(h3(num + '.4 ' + esc(txt('necesitate.s4title'))));
+    nec.blocks.push(ul(txt('necesitate.bullets').map(function (b) { return S(b, 'necesitate'); })));
+
+    /* 4 — abrevieri */
+    num++;
+    var ab = chap('abrevieri', { num: num, title: txt('abrevieri.title'), pageBreak: true });
+    ab.blocks.push(h2(num + ' ' + esc(txt('abrevieri.title'))));
+    ab.blocks.push({ table: { head: ['', ''], rows: txt('abrevieri.rows').map(function (r) { return ['<b>' + esc(r[0]) + '</b>', esc(r[1])]; }),
+      widths: ['16%', '84%'], cls: 'pt-abbr' } });
+
+    /* 5 — normative */
+    num++;
+    var nor = chap('normative', { num: num, title: txt('normative.title'), pageBreak: true });
+    nor.blocks.push(h2(num + ' ' + esc(txt('normative.title'))));
+    nor.blocks.push(p(esc(txt('normative.intro'))));
+    var norRows = txt('normative.rows') || window.PT_TEXT_RO.normative.rows;
+    nor.blocks.push({ table: { head: ['', ''], rows: norRows.map(function (r) { return ['<b>' + esc(r[0]) + '</b>', esc(r[1])]; }),
+      widths: ['24%', '76%'], cls: 'pt-abbr' } });
+
+    /* 6 — prezentarea proiectului + date tehnice CEF + șiruri */
+    num++;
+    var pr = chap('prezentare', { num: num, title: txt('prezentare.title'), pageBreak: true });
+    pr.blocks.push(h2(num + ' ' + esc(txt('prezentare.title'))));
+    pr.blocks.push(p(S(txt('prezentare.p1'), 'prezentare')));
+    pr.blocks.push(p(S(txt('prezentare.p2'), 'prezentare')));
+    if (C.grid.mode) pr.blocks.push(p(S(txt(C.grid.mode === 'injection' ? 'prezentare.p3inj' : 'prezentare.p3noinj'), 'prezentare')));
+    else { _missing.push({ chapter: 'prezentare', field: 'gridmode' }); pr.blocks.push(p(missTag())); }
+    pr.blocks.push(p(S(txt('prezentare.p4'), 'prezentare')));
+    var sn = 0;
+    sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sAmplasament'))));
+    pr.blocks.push(p(S(txt('prezentare.pAmpl'), 'prezentare')));
+    sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sIradiere'))));
+    pr.blocks.push(p(S(txt('prezentare.pIrad'), 'prezentare')));
+    sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sConsum'))));
+    pr.blocks.push(p(S(txt('prezentare.pConsum'), 'prezentare')));
+    sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sRacordare'))));
+    pr.blocks.push(p(S(txt('prezentare.pRacordare'), 'prezentare')));
+    sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sCEF'))));
+    pr.blocks.push(p(S(txt('prezentare.pCEF'), 'prezentare')));
+    /* one module line PER DISTINCT MODULE (multi-string systems list every module type,
+       with the strings that use it) — the first cefList template item is expanded */
+    var modGroups = [];
+    C.strings.forEach(function (s, i) {
+      var m = modById(s.moduleId);
+      var key = m ? m.id : '?' + i;
+      var g = modGroups.find(function (x) { return x.key === key; });
+      if (!g) { g = { key: key, name: m ? m.name.replace(/\s*\(.*\)$/, '') : null, pmax: m ? m.pmax : null, n: 0, strs: [] }; modGroups.push(g); }
+      g.n += s.count || 0; g.strs.push('S' + (i + 1));
+    });
+    var cefItems = [];
+    txt('prezentare.cefList').forEach(function (item, idx) {
+      if (idx === 0 && modGroups.length) {
+        modGroups.forEach(function (g) {
+          var line = item
+            .replace('{modulNume}', g.name != null ? esc(g.name) : (_missing.push({ chapter: 'prezentare', field: 'modulNume' }), missTag()))
+            .replace('{modulPmax}', g.pmax != null ? fnum(g.pmax) : missTag())
+            .replace('{nrModule}', String(g.n));
+          cefItems.push(line + (C.strings.length > 1 ? ' <i>(' + g.strs.join(', ') + ')</i>' : ''));
+        });
+        return;
+      }
+      var semTxt;
+      if (item.indexOf('{semItem}') >= 0) {
+        if (C.grid.mode) semTxt = txt(C.grid.mode === 'injection' ? 'prezentare.semInj' : 'prezentare.semNoinj');
+        else { _missing.push({ chapter: 'prezentare', field: 'gridmode' }); semTxt = missTag(); }
+        item = item.replace('{semItem}', semTxt);
+      }
+      cefItems.push(S(item, 'prezentare'));
+    });
+    pr.blocks.push(ul(cefItems));
+    sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sStrings'))));
+    pr.blocks.push(p(S(txt('prezentare.pStrings'), 'prezentare')));
+    pr.blocks.push({ table: { head: txt('prezentare.strCols').map(esc), rows: C.perString.map(function (s) {
+      function cell(x, dp) { return x != null ? fnum(x) : missTag(); }
+      return ['<b>' + esc(s.label) + '</b>', s.modName ? esc(s.modName) : missTag(), esc(String(s.cfg)),
+              s.p != null ? fnum(s.p) : missTag(), cell(s.imp), cell(s.ump), cell(s.isc), cell(s.vocCold), esc(s.ba)];
+    }), cls: 'pt-strtbl' } });
+
+    /* 7 — teste / PIF */
+    num++;
+    var ts = chap('teste', { num: num, title: txt('teste.title'), pageBreak: true });
+    ts.blocks.push(h2(num + ' ' + esc(txt('teste.title'))));
+    ts.blocks.push(p(esc(txt('teste.intro'))));
+    ts.blocks.push(ul(txt('teste.bullets').map(esc)));
+
+    /* 8 — faze determinante */
+    num++;
+    var fz = chap('faze', { num: num, title: txt('faze.title'), pageBreak: true });
+    fz.blocks.push(h2(num + ' ' + esc(txt('faze.title'))));
+    fz.blocks.push(p(esc(txt('faze.intro'))));
+    fz.blocks.push({ table: { head: txt('faze.cols').map(esc), rows: txt('faze.rows').map(function (r, i) {
+      return [String(i + 1), esc(r[0]), esc(r[1]), esc(r[2])];
+    }), widths: ['7%', '63%', '14%', '16%'] } });
+    fz.blocks.push(p('<i>' + esc(txt('faze.note')) + '</i>'));
+
+    /* Anexa 1 — graphs carried over from the retired client PDF */
+    var ax = chap('anexa1', { pageBreak: true, sectionMark: 'anexa1', tocTitle: txt('anexa1.title') });
+    ax.blocks.push(h2(esc(txt('anexa1.title'))));
+    /* the source statement is conditional: official PVGIS imports per string vs the in-house
+       model (the model text appears ONLY when no string uses official PVGIS data) */
+    var offIdx = [], modIdx = [];
+    C.strings.forEach(function (s, i) {
+      var ok = s.usePvgis && s.pvgisRef && Array.isArray(s.pvgisRef.monthlyE);
+      (ok ? offIdx : modIdx).push('S' + (i + 1));
+    });
+    var introTxt;
+    if (offIdx.length && !modIdx.length) introTxt = txt('anexa1.introOfficial');
+    else if (offIdx.length)              introTxt = txt('anexa1.introMixed');
+    else                                 introTxt = txt('anexa1.introModel');
+    var ref0 = C.strings.filter(function (s) { return s.usePvgis && s.pvgisRef; }).map(function (s) { return s.pvgisRef; })[0];
+    var dbinfo = ref0 ? (((ref0.inputs || {}).db) || 'PVGIS') + ((ref0.inputs || {}).yearMin ? ' ' + ref0.inputs.yearMin + '-' + ref0.inputs.yearMax : '') : 'PVGIS';
+    introTxt = String(introTxt)
+      .replace('{dbinfo}', esc(dbinfo))
+      .replace('{offList}', esc(offIdx.join(', ')))
+      .replace('{modList}', esc(modIdx.join(', ')));
+    ax.blocks.push(p(introTxt));
+    var sz = C.sizing, locale2 = _lang === 'en' ? 'en-GB' : 'ro-RO';
+    var prodM = Array.isArray(sz.monthlyProd) ? sz.monthlyProd : null;
+    var consM = Array.isArray(C.cons.monthly) ? C.cons.monthly : null;
+    if (v.anualKwh || v.kwp) {
+      ax.blocks.push({ html: '<div class="pt-metrics">' + [
+        [v.anualKwh ? v.anualKwh + ' kWh' : null, txt('anexa1.mProd')],
+        [v.kwp ? v.kwp + ' kWp' : null, txt('anexa1.mKwp')],
+        [v.specYield ? v.specYield + ' kWh/kWp' : null, txt('anexa1.mSpec')],
+        [(sz.annualProdKwh ? Math.round(sz.annualProdKwh / 12).toLocaleString(locale2) + ' kWh' : null), txt('anexa1.mAvg')],
+      ].filter(function (m) { return m[0]; }).map(function (m) {
+        return '<div class="pt-metric"><div class="pt-mv">' + esc(m[0]) + '</div><div class="pt-ml">' + esc(m[1]) + '</div></div>';
+      }).join('') + '</div>' });
+    }
+    if (prodM) {
+      ax.blocks.push({ canvas: { h: 280, caption: txt('anexa1.cProd'),
+        mount: mountBarProd(Array.isArray(sz.monthlyByString) ? sz.monthlyByString : null, prodM) } });
+    }
+    if (prodM && consM) {
+      ax.blocks.push({ canvas: { h: 280, caption: txt('anexa1.cCvsP'), mount: mountCvP(consM.map(Math.round), prodM) } });
+    }
+    if (sz.daily && Array.isArray(sz.daily.series)) {
+      ax.blocks.push({ canvas: { h: 260, caption: txt('anexa1.cDaily'), mount: mountDaily(sz.daily) } });
+    }
+    if (prodM) {
+      var maxMo = Math.max.apply(null, prodM);
+      var mrows = prodM.map(function (e, i) {
+        var pct = maxMo > 0 ? Math.round(e / maxMo * 100) : 0;
+        return [mnames()[i], Math.round(e).toLocaleString(locale2),
+                consM ? Math.round(consM[i] || 0).toLocaleString(locale2) : '-',
+                '<div class="pt-bar"><div class="pt-barf" style="width:' + pct + '%"></div></div>'];
+      });
+      mrows.push(['<b>' + esc(txt('anexa1.tAnual')) + '</b>',
+        '<b>' + Math.round(prodM.reduce(function (a, b) { return a + b; }, 0)).toLocaleString(locale2) + '</b>',
+        consM ? '<b>' + Math.round(consM.reduce(function (a, b) { return a + (b || 0); }, 0)).toLocaleString(locale2) + '</b>' : '-', '']);
+      ax.blocks.push(h3(esc(txt('anexa1.cTable'))));
+      ax.blocks.push({ table: { head: txt('anexa1.tCols').map(esc), rows: mrows, widths: ['22%', '24%', '24%', '30%'] } });
+    }
+    if (C.perString.length) {
+      ax.blocks.push(h3(esc(txt('anexa1.bdTitle'))));
+      var bs = Array.isArray(sz.monthlyByString) ? sz.monthlyByString : [];
+      ax.blocks.push({ table: { head: txt('anexa1.bdCols').map(esc), rows: C.perString.map(function (s, i) {
+        var ann = bs[i] && Array.isArray(bs[i].monthly) ? bs[i].monthly.reduce(function (a, b) { return a + b; }, 0) : null;
+        var kw = s.p != null ? s.p / 1000 : null;
+        var st = C.strings[i] || {};
+        var pr0 = Math.max(0, 1 - ((st.losses || 0) + (st.optimizer || 0)) / 100);
+        return ['<b>' + esc(s.label) + '</b>' + (s.official ? ' <span class="pt-pvgis">' + esc(txt('anexa1.pvgisTag')) + '</span>' : ''),
+                s.modName ? esc(s.modName) : '-', esc(String(st.count || '-')),
+                kw != null ? fnum(kw) : '-', esc(s.ba), fnum(pr0),
+                ann != null ? Math.round(ann).toLocaleString(locale2) : '-',
+                (ann != null && kw) ? Math.round(ann / kw).toLocaleString(locale2) : '-'];
+      }), cls: 'pt-strtbl' } });
+    }
+
+    /* Planșe — placeholder pages with title block (P-A per PT-SPEC §6) */
+    var plChap = chap('planse', { pageBreak: true, sectionMark: 'planse', tocTitle: txt('planse.title') });
+    plChap.blocks.push(h2(esc(txt('planse.title'))));
+    plChap.blocks.push(p(esc(txt('planse.note'))));
+    /* lead drawing: the single-line schematic, ONE landscape plate, rendered by the SHARED SchemaSVG
+       (same builder as the schema.html editor). The drawing carries its own cartouche/title block, so
+       it goes on a bare page and is rotated 90° to lie landscape on the portrait sheet (addPlate/CSS). */
+    if (typeof SchemaSVG !== 'undefined') {
+      var sres = SchemaSVG.build({ nodeIds: false, learn: false });
+      plChap.blocks.push({ pageBreak: true, bare: true });
+      if (sres.hasStrings) plChap.blocks.push({ plate: { svg: sres.svg } });
+      else { _missing.push({ chapter: 'planse', field: 'schemaMonofilara' }); plChap.blocks.push({ plate: { missing: txt('planse.schemaMissing') } }); }
+    }
+    txt('borderou.planse').forEach(function (pl) {
+      plChap.blocks.push({ pageBreak: true });
+      plChap.blocks.push({ html:
+        '<div class="pt-plansa"><div class="pt-pl-empty">' + esc(txt('planse.seAnexeaza')) + '</div>' +
+        '<table class="pt-cartus"><tr>' +
+          '<td>' + esc(txt('planse.cartus.proiectat')) + ': ' + (v.proiectantNume ? esc(v.proiectantNume) : missTag()) + '<br>' +
+                   esc(txt('planse.cartus.aprobat')) + ': ' + (v.proiectantNume ? esc(v.proiectantNume) : missTag()) + '</td>' +
+          '<td>' + (v.beneficiarFirma ? esc(v.beneficiarFirma) : missTag()) + '<br>' + (v.adresaObiectiv ? esc(v.adresaObiectiv) : missTag()) + '</td>' +
+          '<td>' + esc(txt('planse.cartus.faza')) + ': ' + (v.faza ? esc(v.faza) : missTag()) + '<br>' + esc(txt('planse.cartus.plansa')) + ': <b>' + esc(pl[1]) + '</b></td>' +
+          '<td>' + esc(pl[0]) + '</td>' +
+        '</tr></table></div>' });
+    });
+
+    /* cuprins rows (now that numbering is known) */
+    var tocRows = chapters.filter(function (c) { return c.num || c.tocTitle; }).map(function (c) {
+      var label = c.num ? (c.num + ' ' + c.title) : c.tocTitle;
+      return [esc(label), '<span data-pt-toc="' + c.id + '"></span>'];
+    });
+    toc.blocks.push({ table: { head: ['', txt('common.pag')].map(esc), rows: tocRows, widths: ['86%', '14%'], cls: 'pt-toctbl' } });
+
+    return chapters;
+  }
+
+  /* ── main build ── */
+  function build(host, lang) {
+    _lang = lang === 'en' ? 'en' : 'ro';
+    _missing = []; _mounts = []; _pages = []; _sections = {}; _chapStart = {};
+    _host = host;
+    host.innerHTML = '';
+
+    var C = collect();
+    if (!C.v.projectName) _missing.push({ chapter: 'header', field: 'projectName' });
+    var chapters = buildChapters(C);
+
+    chapters.forEach(function (c, ci) {
+      if (ci === 0) newPage(!!c.bare, C.v);
+      else if (c.pageBreak) newPage(!!c.bare, C.v);
+      _chapStart[c.id] = _pages.length;            // 1-based page where the chapter starts
+      if (c.sectionMark) _sections[c.sectionMark] = _pages.length;
+      c.blocks.forEach(function (b) { addBlock(b, C.v); });
+      _chapStart[c.id] = Math.min(_chapStart[c.id], _pages.length); // (start recorded before blocks)
+    });
+
+    /* pass 2 — page numbers, TOC, borderou section page counts */
+    var total = _pages.length;
+    _pages.forEach(function (pg, i) {
+      var n = pg.querySelector('.pt-pagno');
+      if (n) n.textContent = (i + 1) + ' / ' + total;
+    });
+    Object.keys(_chapStart).forEach(function (id) {
+      host.querySelectorAll('[data-pt-toc="' + id + '"]').forEach(function (cell) { cell.textContent = _chapStart[id]; });
+    });
+    var anexaStart = _sections.anexa1 || total + 1;
+    var planseStart = _sections.planse || total + 1;
+    var counts = { memoriu: anexaStart - 1, anexa1: Math.max(0, planseStart - anexaStart) };
+    Object.keys(counts).forEach(function (k) {
+      host.querySelectorAll('[data-pt-bord="' + k + '"]').forEach(function (cell) { cell.textContent = counts[k]; });
+    });
+
+    /* mount charts last (fixed-size canvases — pagination already measured them) */
+    if (typeof Chart !== 'undefined') {
+      _mounts.forEach(function (m) { try { m.mount(m.canvas); } catch (e) { /* chart data absent */ } });
+    }
+
+    /* dedupe missing list for the pre-flight */
+    var seen = {}, miss = [];
+    _missing.forEach(function (m) {
+      var k = m.chapter + ':' + m.field;
+      if (!seen[k]) { seen[k] = 1; miss.push(m); }
+    });
+    return { pages: total, missing: miss, values: C.v };
+  }
+
+  return { build: build };
+})();

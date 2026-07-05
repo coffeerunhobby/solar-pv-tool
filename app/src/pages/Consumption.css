@@ -1,0 +1,42 @@
+/* Premises/Consumption — page-local styles, verbatim from legacy consumption.html
+   <style>. Generic names (.kv, .seg, .field-inline) scoped by [data-page]. */
+.con-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+[data-page="consumption"] .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+[data-page="consumption"] .kv:last-child { border-bottom: 0; }
+[data-page="consumption"] .kv .k { color: var(--text3); }
+[data-page="consumption"] .kv .v { color: var(--text); font-weight: 600; text-align: right; }
+[data-page="consumption"] .big { font-size: 22px; font-weight: 700; }
+[data-page="consumption"] .seg { display: flex; gap: 6px; margin-bottom: 4px; }
+[data-page="consumption"] .seg label { flex: 1; text-align: center; font-size: 12px; padding: 7px 6px; border: 0.5px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text2); }
+[data-page="consumption"] .seg input { display: none; }
+[data-page="consumption"] .seg input:checked + span { font-weight: 700; }
+[data-page="consumption"] .seg label:has(input:checked) { border-color: var(--clr-primary); background: color-mix(in srgb, var(--clr-primary) 12%, transparent); color: var(--clr-primary); }
+.mon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mon-cell label { display: block; font-size: 10px; color: var(--text3); margin-bottom: 1px; }
+.mon-cell input { width: 100%; font-size: 12px; padding: 4px 6px; background: var(--input-bg); color: var(--text); border: 0.5px solid var(--border); border-radius: 6px; }
+.fill-row { display: flex; gap: 6px; align-items: center; margin: 8px 0 2px; }
+.fill-row input { width: 80px; font-size: 12px; padding: 4px 6px; background: var(--input-bg); color: var(--text); border: 0.5px solid var(--border); border-radius: 6px; }
+.appl-row { display: grid; grid-template-columns: 1fr 50px 34px 42px 42px 20px; gap: 4px; align-items: center; margin-bottom: 6px; }
+.appl-row input { width: 100%; font-size: 12px; padding: 5px 4px; background: var(--input-bg); color: var(--text); border: 0.5px solid var(--border); border-radius: 6px; }
+.appl-head { font-size: 10px; color: var(--text3); }
+/* detailed per-appliance results table (Table 4.7) + power summary */
+.det-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.det-tbl th { font-size: 9.5px; text-transform: uppercase; letter-spacing: .02em; color: var(--text3); font-weight: 600; padding: 4px 5px; border-bottom: 0.5px solid var(--border); text-align: right; }
+.det-tbl th:first-child, .det-tbl td:first-child { text-align: left; }
+.det-tbl td { padding: 5px; border-bottom: 0.5px solid var(--border); text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+.det-tbl tr.tot td { font-weight: 700; border-top: 1px solid var(--border); border-bottom: 0; }
+.pwr-params { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.pwr-params .field { flex: 1; min-width: 90px; margin-bottom: 0; }
+.appl-rm { border: 0; background: none; color: var(--text3); cursor: pointer; font-size: 15px; line-height: 1; }
+.appl-rm:hover { color: #e53935; }
+.appl-kwh { font-size: 10px; color: var(--text3); text-align: right; margin: -2px 0 6px; }
+[data-page="consumption"] .field-inline { display: flex; gap: 8px; align-items: center; }
+[data-page="consumption"] .field-inline input { width: 90px; }
+.con-note { font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.5; }
+.con-note a { color: var(--clr-primary); text-decoration: none; }
+/* building-structure card fields (legacy used inline styles + JS focus handlers) */
+.bld-field { flex: 1; }
+.bld-field label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.bld-field input, .bld-field select { width: 100%; font-size: 13px; color: var(--text); background: var(--input-bg); border: 0.5px solid var(--border); border-radius: 8px; padding: 7px 10px; outline: none; }
+.bld-field input:focus, .bld-field select:focus { border-color: var(--clr-primary); }
+.bld-note { font-size: 10px; color: var(--text3); margin-top: 3px; }

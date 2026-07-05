@@ -1,0 +1,4 @@
+/* String sizing (step 8) — page-local styles, verbatim from legacy strings.html. */
+.ss-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+.from-project { font-size: 11px; color: var(--clr-primary); margin-top: 5px; min-height: 1.1em; }
+/* .str-tag chip is shared (style.css) */

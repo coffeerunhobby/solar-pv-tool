@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Get Access &mdash; Solar PV Tool</title>
+  <link rel="stylesheet" href="css/style.css?v=1.2.4">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .pay-wrap {
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+    .pay-title  { font-size: 1.4rem; font-weight: 600; color: var(--text); margin-bottom: .4rem; }
+    .pay-sub    { font-size: .875rem; color: var(--text2); margin-bottom: 2rem; line-height: 1.6; }
+    .card       { margin-bottom: 1rem; }
+    .sec        { font-size: .75rem; font-weight: 600; text-transform: uppercase;
+                  letter-spacing: .05em; color: var(--text3); margin-bottom: .5rem; }
+    .features   { font-size: 12px; color: var(--text2); line-height: 2;
+                  padding-left: 1.2rem; text-align: left; }
+    .pay-price  { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: .3rem; }
+    .back-link  { font-size: .8rem; color: var(--text2); text-decoration: none; display: inline-block; margin-top: 1rem; }
+    #payment-success {
+      display: none;
+      background: #dcfce7;
+      border: 2px solid #86efac;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    #payment-success h2 { color: #16a34a; margin-bottom: .5rem; font-size: 1.1rem; }
+    #payment-success p  { font-size: .9rem; color: #166534; line-height: 1.6; margin: 0; }
+    #redirect-countdown {
+      display: inline-block;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #16a34a;
+      margin: .5rem 0;
+    }
+    #paypal-button-container { min-height: 45px; }
+  </style>
+</head>
+<body>
+
+  <div class="pay-wrap">
+    <div class="pay-title">☀️ Solar PV Tool</div>
+    <div class="pay-sub">Professional sun path, horizon, yield &amp; string sizing tool<br>for solar PV design.</div>
+
+    <!-- Shown after successful payment -->
+    <div id="payment-success">
+      <h2>✓ Payment confirmed!</h2>
+      <p>Thank you! Preparing your access&hellip;</p>
+      <div id="redirect-countdown">10</div>
+      <p id="redirect-msg">You will be redirected automatically in <span id="redirect-secs">10</span> seconds.<br>
+      You will also receive an email with your access link.</p>
+    </div>
+
+    <!-- What you get -->
+    <div class="card" style="text-align:left;margin-bottom:1rem">
+      <div class="sec">What you get</div>
+      <ul class="features">
+        <li>Sun path chart - all 12 months, any location</li>
+        <li>Horizon / obstacle manager &amp; PVGIS export</li>
+        <li>Static yield calculator (no API key needed)</li>
+        <li>String sizing</li>
+        <li>Unlimited access, no subscription</li>
+      </ul>
+    </div>
+
+    <!-- Payment -->
+    <div class="card" id="pay-card">
+      <div class="pay-price">10 EUR</div>
+      <div id="paypal-button-container" style="margin-top:1rem"></div>
+      <div style="font-size:.75rem;color:var(--text3);margin-top:.75rem">Secure payment via PayPal</div>
+    </div>
+
+    <a href="index.html" class="back-link">&larr; Back to tool</a>
+  </div>
+
+  <script>
+    if (localStorage.getItem('spv_theme') === 'dark' ||
+        (!localStorage.getItem('spv_theme') && matchMedia('(prefers-color-scheme:dark)').matches)) {
+      document.body.classList.add('dark');
+    }
+  </script>
+
+<script src="vendor/bootstrap.bundle.min.js"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=AdsShV0TE-R_JU8Me5ku3Sr4ZVKIKoP5tJIfoALogJqsjQKMAvBP0hg3XlhY6zCHT_9g_LZDUbBdKXFx&currency=EUR&intent=capture&disable-funding=venmo"></script>
+  <script>
+    var PROVISION_ENDPOINT = 'https://n3ky9b78wh.execute-api.eu-central-1.amazonaws.com/provision';
+
+    paypal.Buttons({
+      style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+
+      createOrder: function (data, actions) {
+        return actions.order.create({
+          purchase_units: [{
+            description: 'Solar PV Tool - unlimited access',
+            amount: { value: '10.00', currency_code: 'EUR' },
+            custom_id: 'solar-pv'
+          }]
+        });
+      },
+
+      onApprove: function (data, actions) {
+        return actions.order.capture().then(function (result) {
+          var email    = result.payer.email_address;
+          var orderId  = result.id;
+          var capture  = (result.purchase_units[0].payments.captures || [])[0] || {};
+          var amount   = capture.amount ? capture.amount.value         : null;
+          var currency = capture.amount ? capture.amount.currency_code : null;
+
+          document.getElementById('pay-card').style.display = 'none';
+          document.getElementById('payment-success').style.display = 'block';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+
+          var provisionBody = { email: email, orderId: orderId, service: 'solar-pv' };
+          if (amount   !== null) provisionBody.amount   = amount;
+          if (currency !== null) provisionBody.currency = currency;
+
+          var provisionPromise = fetch(PROVISION_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(provisionBody),
+            signal: AbortSignal.timeout(15000),
+          })
+            .then(function (r) { return r.json(); })
+            .catch(function () { return null; });
+
+          var countdownPromise = new Promise(function (resolve) {
+            var n = 10;
+            var countEl = document.getElementById('redirect-countdown');
+            var secsEl  = document.getElementById('redirect-secs');
+            var timer = setInterval(function () {
+              n--;
+              countEl.textContent = n;
+              secsEl.textContent  = n;
+              if (n <= 0) { clearInterval(timer); resolve(); }
+            }, 1000);
+          });
+
+          Promise.all([provisionPromise, countdownPromise]).then(function (results) {
+            var json = results[0];
+            if (json && json.ok && json.key) {
+              window.location.href = 'index.html?e=' + encodeURIComponent(json.email) + '&k=' + json.key;
+            } else {
+              document.getElementById('redirect-countdown').style.display = 'none';
+              document.getElementById('redirect-msg').innerHTML =
+                'You will receive an email in a few minutes with your <a href="index.html" style="color:#16a34a;font-weight:600">access link</a>.<br>' +
+                'Click the link in the email to open the tool directly.';
+            }
+          });
+        });
+      },
+
+      onError: function (err) {
+        console.error('PayPal error:', err);
+        alert('Payment error - please try again.');
+      }
+
+    }).render('#paypal-button-container');
+  </script>
+
+</body>
+</html>

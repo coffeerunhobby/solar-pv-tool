@@ -1,0 +1,8 @@
+{
+  "appId": "ro.coffeerunhobby.solarpv",
+  "appName": "Earth Energy Engine",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

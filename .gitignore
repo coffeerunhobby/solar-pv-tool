@@ -1,0 +1,57 @@
+assets/
+node_modules/
+app/node_modules
+app/.nm-win-old
+# Per-platform node_modules on the shared NAS (Windows can't symlink on \\storage_nas_01 like
+# macOS does): each OS keeps its own real folder and rename-swaps it into place as node_modules.
+# node_modules_win = Windows deps; macOS uses an off-share symlink. See MOBILE.md "node_modules".
+app/node_modules_win
+app/node_modules_mac
+scripts/
+data/*.bin
+readme.txt
+deploy.sh
+
+# Playwright — auth state contains live credentials
+.playwright-auth/
+tests/results/
+tests/report/
+tests/screenshots/
+.DS_Store
+**/.DS_Store
+# Samba/SMB in-flight delete markers (appear when deleting over a network share; names rotate)
+.smbdelete*
+
+# Extreme-wind dev-only geography (large, not deployed; refetch from naturalearthdata)
+scripts/extremewind/ne_admin1_10m.json
+scripts/extremewind/se_kommun.json
+scripts/extremewind/kml/
+
+# build-tool backups & logs
+*.bak
+data/*.bak
+data/*.pre-sarah3
+.gen-*.log
+
+# Terrain-horizon tiles + index: regenerable bulk data (scripts/build-horizon-region.js + build-horizon-index.js),
+# deployed to S3 via deploy.sh. ~82MB - kept out of git like the data/*.bin sources. `git add -f` to override.
+data/horizon/
+data/horizon-index.png
+data/kt-mesh-poc/
+app/dist/
+
+# Capacitor native projects — regenerable via `npx cap add <platform>` + `npm run cap:sync` (see MOBILE.md)
+app/android/
+app/ios/
+# the root `scripts/` rule (line 3) also swallows app/scripts — keep the Capacitor bundle-prep tracked
+!app/scripts/
+!app/scripts/cap-prep.mjs
+!app/scripts/gen-android-icons.py
+
+# Deploy-time obfuscated grid staging (regenerated each deploy by scripts/shuffle-grids.cjs)
+.deploy-grids/
+
+# Android release signing key — NEVER commit. Back up the keystore + password in Bitwarden;
+# losing it means the app can never be updated on any store. Password passed via env at build.
+app/*.keystore
+app/release.keystore

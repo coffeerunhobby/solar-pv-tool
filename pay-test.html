@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>⚙ Sandbox Payment Test · Solar PV Tool</title>
+  <link rel="stylesheet" href="vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css?v=1.2.4">
+  <style>
+    /* ── Dark overrides for sandbox page (self-contained) ───────────────── */
+    body          { background: #0f0f0f; color: #e0e0e0; }
+    .card         { background: #1a1a1a; border-color: #333; color: #e0e0e0; }
+    .card h2      { color: #ccc; }
+    .form-control { background: #111; border-color: #444; color: #e0e0e0; }
+    .form-control:focus { background: #111; color: #e0e0e0; border-color: #f5c542;
+                          box-shadow: 0 0 0 .2rem rgba(245,197,66,.15); }
+    .table        { --bs-table-bg: transparent; --bs-table-color: #e0e0e0;
+                    --bs-table-border-color: #333; }
+    .text-muted   { color: #888 !important; }
+    label         { color: #999; }
+    hr            { border-color: #2a2a2a; }
+    code          { color: #f5c542; background: transparent; }
+    .sandbox-accent { color: #f5c542; }
+    .sandbox-badge  { display: inline-block; font-size: .55em; font-weight: 700;
+                      letter-spacing: .08em; vertical-align: middle; padding: .15em .5em;
+                      border: 1px solid #4a3d00; border-radius: 4px; background: #1a1500;
+                      color: #f5c542; }
+    .inbox-box    { background: #1a1500; border: 1px solid #4a3d00; border-radius: 8px;
+                    padding: .75rem 1rem; font-size: .82rem; }
+    .result-card  { border-color: #2a6b2a !important; }
+    .result-card h2 { color: #4caf50; }
+    .error-card   { border-color: #6b2a2a !important; }
+    .error-card   { color: #f88; }
+    .mono         { font-family: monospace; font-size: .9rem; }
+    #paypal-button-container { min-height: 50px; }
+  </style>
+</head>
+<body>
+
+<div class="container py-4" style="max-width:560px">
+  <h1 class="fw-bold mb-1 sandbox-accent">
+    Payment test <span class="sandbox-badge">SANDBOX</span>
+  </h1>
+  <p class="text-muted small mb-4">No real money. Emails go to testinator. Full end-to-end provision flow.</p>
+
+  <!-- ── Result (shown after successful payment) ─────────────────────────── -->
+  <div class="card result-card mb-3" id="result" style="display:none">
+    <div class="card-body">
+      <h2 class="fw-bold mb-3">✓ Provision OK</h2>
+      <div class="d-flex gap-3 mb-2 small"><span class="text-muted" style="min-width:70px">email</span>   <span class="mono" id="r-email"></span></div>
+      <div class="d-flex gap-3 mb-2 small"><span class="text-muted" style="min-width:70px">key</span>    <span class="mono" id="r-key"></span></div>
+      <div class="d-flex gap-3 mb-2 small"><span class="text-muted" style="min-width:70px">orderId</span><span class="mono" id="r-order"></span></div>
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <a id="r-inbox"    href="#" target="_blank" class="btn btn-sm btn-outline-warning">📬 Check testinator inbox</a>
+        <a id="r-validate" href="#" target="_blank" class="btn btn-sm btn-outline-secondary">🔑 Validate this key</a>
+        <a id="r-magic"    href="#" target="_blank" class="btn btn-sm btn-outline-secondary">🔗 Open magic link</a>
+      </div>
+      <p class="text-muted small mt-2 mb-0" id="r-tip"></p>
+    </div>
+  </div>
+
+  <!-- ── Error ──────────────────────────────────────────────────────────── -->
+  <div class="card error-card mb-3" id="error-box" style="display:none">
+    <div class="card-body small" id="error-msg"></div>
+  </div>
+
+  <!-- ── Test email ─────────────────────────────────────────────────────── -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h2 class="h6 mb-3">Test email address</h2>
+      <label class="small mb-1 d-block">Recipient (editable - must be a mailinator/testinator address for traceability)</label>
+      <input type="email" id="test-email" class="form-control form-control-sm mb-3" value="">
+      <div class="inbox-box">
+        Inbox (updates as you type):<br>
+        <a id="inbox-link" href="#" target="_blank" class="sandbox-accent">-</a>
+        <br><br>
+        Both <code>@team940296.testinator.email</code> and <code>@mailinator.com</code>
+        addresses open via the Mailinator private inbox link above (requires pro Mailinator login).
+      </div>
+      <p class="text-muted small mt-2 mb-0">
+        Use a fresh address each run to test email delivery - repeated tests with the same email return the same key silently.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── PayPal sandbox button ──────────────────────────────────────────── -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h2 class="h6 mb-2">PayPal sandbox payment - 1 EUR</h2>
+      <p class="text-muted small mb-3">
+        Log in with the sandbox buyer account from
+        <a href="https://developer.paypal.com/dashboard/accounts" target="_blank" class="sandbox-accent">
+          developer.paypal.com → Sandbox Accounts</a>,
+        or use the test card below.
+      </p>
+      <div id="paypal-button-container"></div>
+    </div>
+  </div>
+
+  <!-- ── Test card reference ────────────────────────────────────────────── -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h2 class="h6 mb-3">Test credit card (PayPal "Debit or Credit Card" option)</h2>
+      <table class="table table-sm table-borderless small mb-2">
+        <tbody>
+          <tr><td style="width:110px">Card number</td><td class="mono">4032039317984022</td></tr>
+          <tr><td>Expiry</td>      <td class="mono">12 / 2030</td></tr>
+          <tr><td>CVV</td>         <td class="mono">123</td></tr>
+          <tr><td>First name</td>  <td class="mono">Test</td></tr>
+          <tr><td>Last name</td>   <td class="mono">Buyer</td></tr>
+          <tr><td>Street</td>      <td class="mono">1 Main St</td></tr>
+          <tr><td>City</td>        <td class="mono">New York</td></tr>
+          <tr><td>State</td>       <td class="mono">NY</td></tr>
+          <tr><td>ZIP code</td>    <td class="mono">10001</td></tr>
+          <tr><td>Country</td>     <td class="mono">US</td></tr>
+          <tr><td>Mobile</td>      <td class="mono">+1 2125550000</td></tr>
+        </tbody>
+      </table>
+      <p class="text-muted small mb-0">
+        Alternative Visa: <span class="mono">4111111111111111</span>
+        · MasterCard: <span class="mono">5500000000000004</span>
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<!--
+  This is a REAL end-to-end test, not a stub. The button below runs a genuine
+  PayPal *sandbox* checkout: order.capture() returns a real sandbox order ID,
+  which is sent to /provision (service: paypal-sandbox). It does NOT send a fake
+  order ID.
+
+  Post payment-verification fix (GeoCraft Api\Services::provision, 2026-06):
+    • /provision verifies the order against PayPal before minting a key, so this
+      test REQUIRES a real sandbox buyer approval (sandbox account or test card).
+      A hand-crafted / bogus order ID will be rejected 400 - by design.
+    • For the real sandbox order to pass verification, GeoCraft's paypal-sandbox
+      service creds must be the SAME sandbox merchant as the client-id below, and
+      its expected price must be 1.00 EUR (the amount charged here).
+-->
+<!-- Sandbox PayPal SDK (shared sandbox app - same as anre-quiz pay-test) -->
+<script src="https://www.paypal.com/sdk/js?client-id=AQlx9iLMCQXzbXCyVFPHmcXfrrwxi3omVQ1p_P7GWnncg_aFBQqWzoOMZC9mGrI-2faGpbJTe8Tqgj5D&currency=EUR&intent=capture&disable-funding=venmo"></script>
+<script>
+(function () {
+  var PROVISION_ENDPOINT = 'https://n3ky9b78wh.execute-api.eu-central-1.amazonaws.com/provision';
+  var VALIDATE_ENDPOINT  = 'https://n3ky9b78wh.execute-api.eu-central-1.amazonaws.com/';
+  var SERVICE            = 'paypal-sandbox';   // shared sandbox service (GeoCraft paypal_mode='sandbox')
+
+  var ts    = Date.now().toString(36);
+  var email = 'solartest-' + ts + '@team940296.testinator.email';
+
+  var emailInput = document.getElementById('test-email');
+  emailInput.value = email;
+
+  emailInput.addEventListener('input', function () { updateInboxLink(emailInput.value.trim()); });
+
+  function inboxUrl(addr) {
+    var local = addr.split('@')[0];
+    if (addr.endsWith('@team940296.testinator.email') || addr.endsWith('@mailinator.com')) {
+      return 'https://www.mailinator.com/v4/private/inboxes.jsp?to=' + encodeURIComponent(local);
+    }
+    return null;
+  }
+
+  function updateInboxLink(addr) {
+    var link  = document.getElementById('inbox-link');
+    var local = addr.split('@')[0];
+    if (addr.endsWith('@team940296.testinator.email') || addr.endsWith('@mailinator.com')) {
+      link.href        = inboxUrl(addr);
+      link.textContent = 'mailinator.com → private inbox → ' + local;
+    } else {
+      link.href = '#'; link.textContent = '(non-mailinator address - check inbox manually)';
+    }
+  }
+  updateInboxLink(email);
+
+  paypal.Buttons({
+    style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+
+    createOrder: function (data, actions) {
+      return actions.order.create({
+        purchase_units: [{ description: 'Sandbox test - Solar PV Tool',
+          amount: { value: '1.00', currency_code: 'EUR' }, custom_id: SERVICE }]
+      });
+    },
+
+    onApprove: function (data, actions) {
+      return actions.order.capture().then(function (result) {
+        var finalEmail = emailInput.value.trim().toLowerCase() || email;
+        var orderId    = result.id;
+        var capture    = (result.purchase_units[0].payments.captures || [])[0] || {};
+        var amount     = capture.amount ? capture.amount.value         : '1.00';
+        var currency   = capture.amount ? capture.amount.currency_code : 'EUR';
+
+        fetch(PROVISION_ENDPOINT, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: finalEmail, orderId: orderId, service: SERVICE, amount: amount, currency: currency }),
+          signal: AbortSignal.timeout(15000),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+          if (!json.ok) { showError('Provision failed: ' + JSON.stringify(json)); return; }
+          var key = json.key;
+          var magicLink = 'https://thegeohunter.com/sandbox-ok?e=' + encodeURIComponent(finalEmail) + '&k=' + encodeURIComponent(key);
+
+          document.getElementById('r-email').textContent  = finalEmail;
+          document.getElementById('r-key').textContent    = key;
+          document.getElementById('r-order').textContent  = orderId;
+
+          var inboxEl = document.getElementById('r-inbox');
+          var iHref   = inboxUrl(finalEmail);
+          if (iHref) { inboxEl.href = iHref; inboxEl.textContent = '📬 Open inbox for ' + finalEmail.split('@')[0]; }
+          else       { inboxEl.href = '#';   inboxEl.textContent = '📬 Check inbox manually'; }
+
+          document.getElementById('r-magic').href = magicLink;
+          document.getElementById('r-validate').addEventListener('click', function (e) { e.preventDefault(); runValidate(finalEmail, key); });
+          if (json.ok === true) document.getElementById('r-tip').textContent = 'is_new - key created, magic-link email queued.';
+
+          document.getElementById('result').style.display   = 'block';
+          document.getElementById('error-box').style.display = 'none';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        })
+        .catch(function (err) { showError('Network error: ' + err.message); });
+      });
+    },
+
+    onError: function (err) { showError('PayPal SDK error: ' + err); }
+  }).render('#paypal-button-container');
+
+  function runValidate(em, key) {
+    fetch(VALIDATE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: em, key: key, service: SERVICE }), signal: AbortSignal.timeout(8000) })
+    .then(function (r) { return r.json(); })
+    .then(function (json) { alert('Validate result:\n' + JSON.stringify(json, null, 2)); })
+    .catch(function (err) { alert('Validate error: ' + err.message); });
+  }
+
+  function showError(msg) {
+    document.getElementById('error-msg').textContent   = msg;
+    document.getElementById('error-box').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}());
+</script>
+<script src="vendor/bootstrap.bundle.min.js"></script>
+</body>
+</html>

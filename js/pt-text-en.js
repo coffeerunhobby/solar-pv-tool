@@ -1,0 +1,221 @@
+/* pt-text-en.js — Proiect Tehnic chapter prose, ENGLISH (informative translation).
+   Same keys as pt-text-ro.js; a missing key falls back to RO (pt-doc.js). Normative
+   reference TITLES stay in Romanian (proper names) per PT-SPEC.md D1. */
+
+window.PT_TEXT_EN = {
+  common: {
+    docTitle:   'TECHNICAL DESIGN REPORT',
+    docSub:     'PHOTOVOLTAIC POWER PLANT',
+    pag:        'Page',
+    editia:     'Edition',
+    revizia:    'Revision',
+    cod:        'Code',
+    missing:    '[to be completed]',
+    annexNote:  'annexed to this documentation',
+    legalNote:  'Informative translation - the Romanian version is the legally operative document for submissions in Romania.',
+  },
+
+  cover: {
+    titlePre:  'Technical design and execution details',
+    titleTpl:  '"Renewable electricity generation facility - solar energy {kwp} kWp"',
+    spec:      'Speciality: electrical installations',
+    lblObiectiv:   'Project name',
+    lblBeneficiar: 'Beneficiary',
+    lblAdresa:     'Site address',
+    lblProiectant: 'Electrical installations designer',
+    lblFaza:       'Design phase',
+    lblData:       'Date of issue',
+  },
+
+  borderou: {
+    title: 'DOCUMENT REGISTER',
+    cols:  ['No.', 'Document name', 'Document code', 'Pages', 'Format'],
+    memoriu: 'Technical design report',
+    anexa1:  'Annex 1 - PV plant calculation report (estimated yield)',
+    planse:  [
+      ['PV plant site plan',              'IE001', 'A0'],
+      ['Single-line diagram - connection','IE002', 'A4'],
+      ['Single-line diagram - TE-CEF',    'IE003', 'A4'],
+      ['Single-line diagram - TE-CC',     'IE004', 'A4'],
+      ['PV module layout plan',           'IE005', 'A1'],
+    ],
+  },
+
+  semnaturi: {
+    title: 'SIGNATURE LIST',
+    cols:  ['Role', 'Full name', 'Attestation / licence', 'Signature'],
+    rows: {
+      proiectant:  'Electrical installations designer',
+      verificator: 'Design verifier - requirement {domeniu}',
+      atestatSoc:  'Company attestation',
+    },
+    note: 'This documentation takes effect only after signature by the attested designer and verification by the design verifier attested for requirement Ie.',
+  },
+
+  atestate: {
+    title: 'ATTESTATIONS',
+    s1: 'Company attestation',
+    s2: 'Designer attestation',
+    body: 'The ANRE attestation of the design company ({atestatSocietate}) and the designer attestation ({atestatProiectant}) are annexed to this documentation as certified copies.',
+  },
+
+  cuprins: { title: 'TABLE OF CONTENTS' },
+
+  dategen: {
+    title: 'GENERAL DATA',
+    s: [
+      ['NAME OF THE INVESTMENT',
+       '"Renewable electricity generation facility - solar energy {kwp} kWp", hereinafter CEF (photovoltaic power plant).'],
+      ['SITE LOCATION',
+       '{adresaObiectiv}'],
+      ['BENEFICIARY',
+       '{beneficiarFirma}, {beneficiarAdresa}'],
+      ['DESIGN PHASE',
+       '{faza}'],
+      ['DESIGN AUTHOR',
+       '{proiectantFirma}, {proiectantAdresa} - electrical installations designer: {proiectantNume}, {atestatProiectant}.'],
+    ],
+  },
+
+  necesitate: {
+    title: 'NECESSITY AND OPPORTUNITY OF THE INVESTMENT',
+    s1title: 'Brief presentation',
+    p1: 'Renewable energy sources hold an ever-increasing share of energy systems, driven both by decarbonisation policies and by the rising price of conventionally generated energy. Solar energy is an officially recognised renewable source, available on site with no fuel cost.',
+    p2: 'Considering the beneficiary\'s electricity demand and the opportunity to use the available surfaces for electricity generation, a generation facility with an installed power of {kwp} kWp is to be built, with the energy produced used for self-consumption.',
+    s2title: 'Shortcomings of the current situation',
+    p3: 'Electricity is currently supplied entirely from the distribution grid, with the associated costs and carbon footprint.',
+    s3title: 'Impact of not implementing the investment',
+    p4: 'Not implementing the project maintains the current electricity costs and the current level of greenhouse-gas emissions.',
+    s4title: 'Advantages / positive impact',
+    bullets: [
+      'lower electricity costs - estimated annual yield {anualKwh} kWh;',
+      'lower grid losses, as energy is produced at the place of consumption;',
+      'greenhouse-gas emissions reduced by approximately {co2} kg CO₂/yr (emission factor ~0.265 kg CO₂/kWh, national mix - source: EEA/ANRE);',
+      'conservation of primary fossil resources.',
+    ],
+  },
+
+  abrevieri: {
+    title: 'LIST OF ABBREVIATIONS',
+    rows: [
+      ['ANRE',   'Romanian Energy Regulatory Authority'],
+      ['ATR',    'Technical connection approval (aviz tehnic de racordare)'],
+      ['CC',     'Direct current (DC)'],
+      ['CA',     'Alternating current (AC)'],
+      ['CEF',    'Photovoltaic power plant (the generation facility)'],
+      ['CEFND',  'Non-dispatchable photovoltaic power plant'],
+      ['MPPT',   'Maximum Power Point Tracking'],
+      ['OD',     'Distribution system operator'],
+      ['PIF',    'Commissioning (punere în funcțiune)'],
+      ['ROCOF',  'Rate of Change of Frequency'],
+      ['RfG',    'Regulation (EU) 2016/631 - network code on requirements for grid connection of generators'],
+      ['SEM',    'Power monitoring and limiting system (zero grid injection)'],
+      ['SEN',    'National power system'],
+      ['SPD',    'Surge Protective Device'],
+      ['STC',    'Standard Test Conditions (1000 W/m², 25 °C, AM 1.5)'],
+      ['TGD',    'Main distribution board'],
+      ['Un',     'Nominal grid voltage'],
+    ],
+  },
+
+  normative: {
+    title: 'STANDARDS AND TECHNICAL REGULATIONS',
+    intro: 'The technical solutions in this documentation comply with the legislation in force and meet the essential quality requirements established by the following normative acts and standards (cited once here; later chapters refer to this list). Titles are kept in Romanian (official names):',
+    rows: null,   /* falls back to the RO table - normative titles are proper names (D1) */
+  },
+
+  prezentare: {
+    title: 'PROJECT PRESENTATION',
+    p1: 'The beneficiary intends to build an electricity generation facility (CEF) with an installed power of {kwp} kWp ({nrModule} PV modules), located at {adresaObiectiv}.',
+    p2: 'The construction importance category, per HGR 766/1997 and MLPAT Order no. 31/N/1997, is "{categoria}" - {categoriaNume} importance.',
+    p3noinj: 'The CEF will be connected at the {tensiune} kV voltage level in {tablou}. The plant will be controlled by an automatic monitoring and limiting system (SEM) which limits the output power so that the CEF does not inject energy into the Distribution Operator\'s grid. The site will operate as a "zero grid injection" prosumer.',
+    p3inj: 'The CEF will be connected at the {tensiune} kV voltage level in {tablou}. The site will operate as a prosumer with active power injection into the grid per ANRE Order 228/2018; surplus energy will be delivered to the Distribution Operator\'s grid.',
+    p4: 'The project covers the low-voltage direct-current (DC) and alternating-current (AC) electrical installations of the CEF.',
+    sIntrare: 'TECHNICAL INPUT DATA',
+    sAmplasament: 'SITE AND CLIMATE DATA',
+    pAmpl: 'Site: latitude {lat}°, longitude {lon}°, elevation {alt} m. Design climate data: minimum air temperature {tamin} °C, maximum {tamax} °C (sizing values used for string design - see the calculation chapter).',
+    sIradiere: 'IRRADIATION DATA',
+    pIrad: 'The estimated specific yield of the system is {specYield} kWh/kWp/yr, resulting in an estimated annual production of {anualKwh} kWh (methodology and the PVGIS comparison are detailed in Annex 1).',
+    sConsum: 'ENERGY SITUATION DATA',
+    pConsum: 'The annual electricity consumption of the site is {consumAnual} kWh.',
+    sRacordare: 'PROPOSED CONNECTION SOLUTION',
+    pRacordare: '{ptAlimentare}',
+    sCEF: 'CEF TECHNICAL DATA',
+    pCEF: 'The photovoltaic power plant (CEF) consists of:',
+    cefList: [
+      '{modulNume} PV modules, Pi = {modulPmax} Wp - {nrModule} pcs;',
+      '{invNume} inverter - {nrInv} pcs;',
+      'AC board TE-CEF 0.4 kV with protections - 1 pc;',
+      'DC board TE-CC with protections - 1 pc;',
+      '{semItem}',
+      'DC and AC electrical circuits;',
+      'PV module mounting system.',
+    ],
+    semNoinj: 'automatic power monitoring and limiting system (SEM), preventing energy injection into the grid - 1 pc;',
+    semInj:   'bidirectional energy metering per the Distribution Operator\'s regulations;',
+    sStrings: 'STRING CONFIGURATION',
+    pStrings: 'The PV modules are series-connected into strings such that each string\'s maximum open-circuit voltage, computed at the minimum design temperature, does not exceed the inverter\'s maximum input voltage. The resulting configuration:',
+    strCols: ['String', 'Module', 'Modules/string (Ns×Np)', 'P string [Wp]', 'Imp [A]', 'Ump [V]', 'Isc [A]', 'Voc,cold [V]', 'β/γ [°]'],
+  },
+
+  teste: {
+    title: 'TESTS, VERIFICATIONS, MEASUREMENTS AND COMMISSIONING',
+    intro: 'Before commissioning, at least the following checks and measurements are performed (PE 116/94, SR HD 60364-6):',
+    bullets: [
+      'visual inspection: general condition of modules, cables, junction boxes, inverter and earthing installation; module position (azimuth, tilt, shading), integrity and fixing of the metallic structure;',
+      'insulation resistance measurement of the DC and AC circuits;',
+      'continuity measurement of the PE protective conductor up to the main board;',
+      'earth electrode dispersion resistance measurement;',
+      'string polarity check and measurement of open-circuit voltage Voc and short-circuit current Isc for every string, compared against theoretical values;',
+      'tightening torque check of structure and module bolts (sampling);',
+      'functional tests of the inverter and protections (including the zero-injection limiting function, where applicable);',
+      'verification of interface protection settings per the technical connection approval.',
+    ],
+  },
+
+  faze: {
+    title: 'EXECUTION MONITORING PROGRAMME AND HOLD POINTS',
+    intro: 'In accordance with Law 10/1995 (updated), the state quality-control regulation in construction (GD 272/1994) and the technical norms in force, the following works control programme is established. Legend: RI - test report; PV - protocol; PVR - acceptance protocol; E - contractor; B - beneficiary; P - designer.',
+    cols: ['No.', 'Works to be controlled, verified or accepted', 'Document', 'Signed by'],
+    rows: [
+      ['Earth electrode dispersion resistance measurement', 'RI',  'E, B'],
+      ['PE continuity measurement at the main board',       'RI',  'E, B'],
+      ['Verification of works that become concealed',       'PV',  'E, B, P'],
+      ['Electrical board checks and tests',                 'RI',  'E, B'],
+      ['Mounting of structure and PV modules',              'PV',  'E, B'],
+      ['Positioning of electrical equipment',               'PV',  'E, B'],
+      ['Verification of power and control cable terminations','PV','E, B'],
+      ['Functional tests',                                  'PV',  'E, B'],
+      ['Acceptance at completion of works',                 'PVR', 'E, B, P'],
+    ],
+    note: 'Control dates are agreed between the beneficiary and the contractor and communicated in due time to the designer for the phases where their presence is mandatory.',
+  },
+
+  anexa1: {
+    title: 'ANNEX 1 - PV PLANT CALCULATION REPORT (ESTIMATED YIELD)',
+    introModel: 'The CEF energy yield was estimated with the in-house calculation tool (documented models: Hofierka/Suri 2002 clear-sky, PVGIS-native anisotropic transposition, thermal derating on the Huld 2010 efficiency surface, Martin-Ruiz angular losses; accuracy documented against PVGIS). Where available, the comparison against official per-string PVGIS (SARAH) data is also presented.',
+    introOfficial: 'The CEF energy production comes from the OFFICIAL PVGIS DATA (European Commission / JRC, database {dbinfo}), imported per string from each orientation\'s PVGIS report. The monthly and annual values below are the official PVGIS figures.',
+    introMixed: 'For strings {offList}, production comes from the OFFICIAL PVGIS DATA (European Commission / JRC, database {dbinfo}), imported per string. For the remaining strings ({modList}), production was estimated with the in-house calculation tool (documented models: Hofierka/Suri 2002 clear-sky, PVGIS-native anisotropic transposition, thermal derating on the Huld 2010 efficiency surface, Martin-Ruiz angular losses; accuracy documented against PVGIS).',
+    mProd:   'Estimated annual production',
+    mKwp:    'Installed power',
+    mSpec:   'Specific yield',
+    mAvg:    'Monthly average',
+    cProd:   'Monthly energy production [kWh]',
+    cDaily:  'Daily production curve (clear sky)',
+    cCvsP:   'Production vs. monthly consumption [kWh]',
+    cTable:  'Monthly data table',
+    tCols:   ['Month', 'Energy [kWh]', 'Consumption [kWh]', 'Relative'],
+    tAnual:  'Annual',
+    bdTitle: 'Per-string breakdown',
+    bdCols:  ['String', 'Module', 'Modules', 'kWp', 'Tilt/Az. [°]', 'PR', 'kWh/yr', 'kWh/kWp'],
+    pvgisTag:'PVGIS data (official)',
+  },
+
+  planse: {
+    title: 'DRAWINGS',
+    note: 'The drawings below are part of the documentation and are annexed (CAD-drafted, per the document register). Each drawing\'s title block will carry the identification data below.',
+    cartus: { desenat: 'Drawn', proiectat: 'Designed', aprobat: 'Approved', faza: 'Phase', scara: 'Scale', plansa: 'Drawing' },
+    seAnexeaza: 'TO BE ANNEXED - drawing produced separately',
+    schemaMissing: 'The single-line diagram cannot be generated - complete the strings, modules and inverter in the earlier steps.',
+  },
+};

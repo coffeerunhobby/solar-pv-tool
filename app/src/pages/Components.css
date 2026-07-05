@@ -1,0 +1,30 @@
+/* Components (step 4) — page-local styles, verbatim from legacy components.html
+   <style>. Generic names (.kv, .big, .ratio-box) scoped by [data-page]. */
+.cmp-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+[data-page="components"] .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+[data-page="components"] .kv:last-child { border-bottom: 0; }
+[data-page="components"] .kv .k { color: var(--text3); }
+[data-page="components"] .kv .v { color: var(--text); font-weight: 600; text-align: right; }
+[data-page="components"] .big { font-size: 22px; font-weight: 700; }
+[data-page="components"] .ratio-box { border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-top: 12px; border: 0.5px solid var(--border); }
+[data-page="components"] .ratio-ok   { background: color-mix(in srgb, var(--ok,#1f9d4d) 14%, transparent); border-color: var(--ok,#1f9d4d); }
+[data-page="components"] .ratio-warn { background: color-mix(in srgb, #f0a020 16%, transparent); border-color: #f0a020; }
+[data-page="components"] .ratio-none { color: var(--text3); font-style: italic; }
+.relation { font-size: 11px; color: var(--text3); margin-top: 8px; font-family: ui-monospace, Menlo, monospace; }
+.str-row { border: 0.5px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: var(--bg); }
+.str-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.str-head .lbl { font-size: 12px; font-weight: 700; color: var(--clr-primary); }
+.str-rm { border: 0; background: none; color: var(--text3); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+.str-rm:hover { color: #e53935; }
+.str-row select, .str-row input { width: 100%; font-size: 12px; padding: 5px 7px; background: var(--input-bg); color: var(--text); border: 0.5px solid var(--border); border-radius: 6px; }
+/* brand → model cascade */
+.cmp-sel { width: 100%; font-size: 12px; padding: 5px 7px; background: var(--input-bg); color: var(--text); border: 0.5px solid var(--border); border-radius: 6px; }
+.cmp-child { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.cmp-child .cmp-sel { flex: 1; min-width: 0; }
+.cmp-arrow { color: var(--text3); font-size: 13px; flex: none; padding-left: 3px; }
+.str-kwp { font-size: 11px; color: var(--text3); margin-top: 4px; text-align: right; }
+.mod-db-row { margin-top: 4px; text-align: right; }
+.mod-db-link { font-size: 11px; color: var(--clr-primary); text-decoration: none; }
+.mod-db-link:hover { text-decoration: underline; }
+.addbtn { width: 100%; }
+.str-note { font-size: 10px; color: var(--text3); margin-top: 4px; line-height: 1.4; }

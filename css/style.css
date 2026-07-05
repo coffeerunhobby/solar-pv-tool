@@ -1,0 +1,342 @@
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f9f9f9;--bg2:#f0f0f0;--surface:#fff;--border:rgba(0,0,0,0.12);--text:#0f0f0f;--text2:#3d3d3d;--text3:#5c5c5c;--input-bg:#fff;--clr-primary:#e07b00;--clr-primary-hover:#c46b00}
+[data-bs-theme="dark"]{--bg:#1c1c1e;--bg2:#2c2c2e;--surface:#2c2c2e;--border:rgba(255,255,255,0.1);--text:#f5f5f7;--text2:#cfcfd4;--text3:#aeaeb4;--input-bg:#3a3a3c;--clr-primary:#5b9cf6;--clr-primary-hover:#3d84f5}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:400;line-height:1.5;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;transition:background .2s,color .2s}
+.topbar{display:flex;align-items:center;gap:10px;padding:.45rem .75rem;background:var(--bg);border:0.5px solid var(--border);border-radius:12px;margin-bottom:.75rem}
+.topbar-brand{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
+.topbar-logo{font-size:22px;line-height:1;flex-shrink:0}
+.topbar-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-end{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
+.tab-seg{flex:2}
+.tab-seg .btn{font-size:.8125rem;font-weight:500;flex:1;--bs-btn-border-color:var(--border);--bs-btn-color:var(--text2);--bs-btn-hover-border-color:var(--border);--bs-btn-hover-color:var(--text)}
+.tab-seg .btn.active{background:var(--clr-primary);color:#fff;border-color:var(--clr-primary)}
+.theme-toggle{cursor:pointer;display:flex;align-items:center;flex-shrink:0}
+.theme-toggle input{display:none}
+.tt-track{position:relative;width:52px;height:28px;background:var(--bg2);border:0.5px solid rgba(0,0,0,0.08);border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:13px;line-height:1;transition:background .2s,border-color .2s}
+[data-bs-theme="dark"] .tt-track{border-color:rgba(255,255,255,0.08)}
+.tt-thumb{position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;top:2px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+[data-bs-theme="dark"] .tt-thumb{background:#e0e0e0}
+.theme-toggle input:checked~.tt-track .tt-thumb{transform:translateX(23px)}
+/* .app grid replaced by Bootstrap col-md-3 / col-md-9 */
+.panel{display:flex;flex-direction:column;gap:.6rem}
+.card{display:block;background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:.85rem 1rem;transition:background .2s}
+.sec{font-size:12px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:.5rem}
+.field label{font-size:13px;color:var(--text2)}
+.field input,.field select{width:100%;font-size:13px;line-height:1.5;padding:7px 9px;background:var(--input-bg);color:var(--text);border:0.5px solid var(--border);border-radius:6px;outline:none}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rg{display:flex;flex-direction:column;gap:4px}
+.rg label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer}
+.btn{--bs-btn-font-size:.8125rem;--bs-btn-border-radius:0.5rem}
+.btn-p{background:var(--clr-primary);color:#fff;border-color:var(--clr-primary)}
+.btn-p:hover,.btn-p:active{background:var(--clr-primary-hover);color:#fff;border-color:var(--clr-primary-hover)}.conv-seg .btn{font-size:.8125rem;font-weight:500;flex:1;line-height:1.4;--bs-btn-border-color:var(--border);--bs-btn-color:var(--text2);--bs-btn-hover-border-color:var(--border);--bs-btn-hover-color:var(--text)}
+.conv-seg .btn.active{background:var(--clr-primary);color:#fff;border-color:var(--clr-primary)}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 7px;border-radius:10px;margin-left:4px}
+.badge-nav{background:#dbeafe;color:#1e40af}.badge-pvg{background:#fef3c7;color:#92400e}
+[data-bs-theme="dark"] .badge-nav{background:#1e3a5f;color:#93c5fd}[data-bs-theme="dark"] .badge-pvg{background:#78350f;color:#fcd34d}
+.conv-box{background:var(--bg2);border-radius:8px;padding:.5rem .75rem;font-size:12px;color:var(--text2);margin-top:.4rem;line-height:1.6}
+.conv-box b{color:var(--text)}
+.obs-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.obs-row:last-child{border:none}
+#map{width:100%;height:175px;border-radius:8px;border:0.5px solid var(--border);cursor:crosshair;isolation:isolate}
+canvas{display:block;width:100%;border-radius:8px;border:0.5px solid var(--border)}
+/* sun-path / horizon chart card: the canvas + legend sit INSIDE one card, so the legend lands on the card's
+   bottom edge (not floating below it). The card border is on #chart-area; the canvas inside is borderless. */
+#chart-area{border:0.5px solid var(--border);border-radius:8px;background:var(--surface);padding:8px}
+#chart-area canvas{border:0;border-radius:6px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:.5rem;padding-top:.5rem;border-top:0.5px solid var(--border)}
+.leg{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
+.leg-sw{width:20px;height:3px;border-radius:2px;display:inline-block}
+.pvgis-wrap{display:flex;flex-direction:column;gap:.75rem}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.metric{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:.65rem .85rem}
+.metric-val{font-size:20px;font-weight:500;color:var(--text);line-height:1.1}
+.metric-lbl{font-size:12px;color:var(--text2);margin-top:3px}
+.metric-sub{font-size:12px;color:var(--text3);margin-top:2px}
+/* per-string tag chip (S1, S2, ...) - background set inline from STR_COLORS[i] (constants.js) */
+.str-tag{display:inline-block;background:var(--clr-primary);color:#fff;border-radius:4px;font-size:11px;font-weight:600;padding:1px 7px;flex-shrink:0;line-height:1.5}
+.month-table{width:100%;border-collapse:collapse;font-size:13px}
+.month-table th{font-size:12px;color:var(--text2);font-weight:500;text-align:left;padding:5px 7px;border-bottom:0.5px solid var(--border)}
+.month-table td{padding:5px 7px;color:var(--text);border-bottom:0.5px solid var(--border)}
+.month-table tr:last-child td{border:none;font-weight:500}
+.bar-bg{background:var(--bg2);border-radius:3px;height:8px;position:relative;width:100px}
+.bar-fill{height:8px;border-radius:3px;background:#1a5c2a;position:absolute;left:0;top:0}
+.pvgis-chart-wrap{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:.85rem 1rem}
+.note{font-size:12px;color:var(--text3);line-height:1.5;padding:.4rem .6rem;background:var(--bg2);border-radius:6px}
+.ss-wrap{display:flex;flex-direction:column;gap:.75rem}
+.badge-ok{background:#d1fae5;color:#065f46}.badge-fail{background:#fee2e2;color:#991b1b}.badge-warn{background:#fef3c7;color:#92400e}
+[data-bs-theme="dark"] .badge-ok{background:#064e3b;color:#6ee7b7}[data-bs-theme="dark"] .badge-fail{background:#7f1d1d;color:#fca5a5}[data-bs-theme="dark"] .badge-warn{background:#78350f;color:#fcd34d}
+.warn-box{background:#fee2e2;border:0.5px solid #fca5a5;border-radius:8px;padding:.6rem .8rem;font-size:12px;color:#991b1b;line-height:1.6}
+[data-bs-theme="dark"] .warn-box{background:rgba(127,29,29,0.25);border-color:#991b1b;color:#fca5a5}
+.ok-box{background:#d1fae5;border:0.5px solid #6ee7b7;border-radius:8px;padding:.6rem .8rem;font-size:12px;color:#065f46;line-height:1.6}
+[data-bs-theme="dark"] .ok-box{background:rgba(6,78,59,0.25);border-color:#065f46;color:#6ee7b7}
+.hint-box{background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;padding:.6rem .8rem;font-size:12px;color:var(--text2);line-height:1.6}
+.ss-table{width:100%;border-collapse:collapse;font-size:13px}
+.ss-table th{font-size:12px;color:var(--text2);font-weight:500;text-align:left;padding:5px 7px;border-bottom:0.5px solid var(--border)}
+.ss-table td{padding:4px 6px;color:var(--text);border-bottom:0.5px solid var(--border)}
+.ss-table tr.opt-row td{font-weight:500}
+.ss-table tr:last-child td{border:none}
+
+/* ── Tablet (portrait iPad, small laptops) ── */
+@media(max-width:960px){
+  .metric-grid{grid-template-columns:repeat(3,1fr)}
+  .chart-row{grid-template-columns:1fr}
+}
+
+/* ── Mobile ── */
+@media(max-width:600px){
+  .topbar{flex-wrap:wrap;gap:4px}
+  .topbar-name{display:none}
+  .tab-seg button{font-size:12px;padding:5px 6px}
+  #chart-area{padding:6px}
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .bar-bg{width:64px}
+  .ss-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .field input,.field select{font-size:16px} /* prevent iOS zoom-on-focus */
+}
+
+/* ── payment gate overlay ── */
+#gate-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999}
+.gate-box{background:var(--surface);border:0.5px solid var(--border);border-radius:16px;padding:2rem 2rem 1.5rem;width:320px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.25)}
+.gate-title{font-size:1.15rem;font-weight:600;color:var(--text);margin-bottom:.3rem}
+.gate-sub{font-size:.8rem;color:var(--text2);line-height:1.5;margin-bottom:1.25rem}
+.gate-input{width:100%;font-size:1.5rem;letter-spacing:.25em;text-align:center;padding:.5rem;background:var(--input-bg);color:var(--text);border:0.5px solid var(--border);border-radius:8px;outline:none;margin-bottom:.5rem}
+#gate-email{font-size:1rem;letter-spacing:0;margin-bottom:.4rem}
+#gate-key{font-size:1rem;letter-spacing:0;margin-bottom:.4rem}
+.gate-btn{width:100%;padding:.65rem;font-size:.875rem;font-weight:600;background:var(--clr-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;margin-bottom:.6rem}
+.gate-btn:hover{filter:brightness(1.1)}
+.gate-err{font-size:.75rem;color:#c0392b;min-height:1.2em;margin-bottom:.5rem}
+.gate-btn-alt{display:block;width:100%;box-sizing:border-box;padding:.6rem;margin-bottom:1rem;font-size:.85rem;font-weight:600;color:var(--clr-primary);background:transparent;border:1px solid var(--clr-primary);border-radius:8px;cursor:pointer;text-decoration:none}
+.gate-btn-alt:hover{background:var(--clr-primary);color:#fff}
+.gate-link{display:block;font-size:.8rem;color:var(--text2);text-decoration:none;margin:.45rem 0}
+.gate-link:hover{color:var(--text)}
+.lang-sel{font-size:12px;font-weight:500;padding:5px 8px;background:var(--bg2);color:var(--text2);border:0.5px solid var(--border);border-radius:8px;cursor:pointer;flex-shrink:0;outline:none}
+.lang-sel:hover,.lang-sel:focus{color:var(--text)}
+
+
+/* ================= merged from site-nav.css ================= */
+/* site-nav.css — shared chrome: header bits, stepper sidebar, prev/next footer.
+   Loaded after style.css (reuses its theme variables, so it themes automatically
+   via the [data-bs-theme] attribute). Rendered by site-nav.js. */
+
+/* Shell */
+.site-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+  padding: 8px 12px; padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
+.site-body  { flex: 1; display: flex; gap: .75rem; min-height: 0; position: relative; }
+
+/* Topbar extras (the .topbar base comes from style.css) */
+.sn-collapse { background: var(--bg2); border: 0.5px solid var(--border); color: var(--text2);
+  border-radius: 8px; width: 34px; height: 30px; font-size: 15px; cursor: pointer; flex-shrink: 0; }
+.sn-collapse:hover { color: var(--text); }
+.sn-sub  { font-size: 11px; color: var(--text3); font-weight: 400; margin-left: 6px; }
+.sn-lang { width: auto; font-size: 13px; color: var(--text); background: var(--input-bg);
+  border: 0.5px solid var(--border); border-radius: 7px; padding: 5px 8px; cursor: pointer; outline: none; }
+/* account avatar + dropdown menu */
+.sn-account { position: relative; flex-shrink: 0; }
+.sn-avatar { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 30px;
+  color: var(--text2); background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; cursor: pointer; }
+.sn-avatar:hover { color: #fff; background: var(--clr-primary); border-color: var(--clr-primary); }
+.sn-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 176px;
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 5px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 2px; }
+.sn-menu[hidden] { display: none; }
+.sn-menu-item { text-align: left; font-size: 13px; color: var(--text); background: none; border: 0;
+  border-radius: 7px; padding: 8px 10px; cursor: pointer; white-space: nowrap; }
+.sn-menu-item:hover { background: var(--bg2); }
+.sn-menu-row { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  font-size: 13px; color: var(--text); padding: 6px 10px; }
+.sn-menu-sep { height: 0; border-top: 0.5px solid var(--border); margin: 5px 4px; }
+#sn-exit-ro { color: var(--clr-primary); font-weight: 600; }
+
+/* read-only (shared-design) banner + edit lock */
+.sn-ro-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; color: #fff; background: var(--clr-primary); padding: 7px 14px; }
+.sn-ro-exit { font-size: 11px; font-weight: 600; color: var(--clr-primary); background: #fff;
+  border: 0; border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+body.spv-ro .site-content input,
+body.spv-ro .site-content select,
+body.spv-ro .site-content textarea { pointer-events: none; opacity: .6; }
+body.spv-ro .site-content .btn,
+body.spv-ro .site-content .str-rm,
+body.spv-ro .site-content .addbtn,
+body.spv-ro .site-content .xpl-toggle { pointer-events: none; opacity: .5; }
+
+/* Stepper sidebar */
+#site-stepper { width: 256px; flex-shrink: 0; overflow-y: auto; background: var(--surface);
+  border: 0.5px solid var(--border); border-radius: 12px; padding: 8px; transition: width .18s ease; }
+.site-shell.sn-collapsed #site-stepper { width: 56px; }
+
+.sn-phase { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text3); padding: 12px 10px 5px; white-space: nowrap; }
+.site-shell.sn-collapsed .sn-phase span { display: none; }
+.site-shell.sn-collapsed .sn-phase { text-align: center; padding: 12px 0 5px; overflow: hidden; }
+
+.sn-step { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 9px;
+  cursor: pointer; color: var(--text2); text-decoration: none; font-size: 13px; line-height: 1.25;
+  border: 1px solid transparent; white-space: nowrap; }
+a.sn-step:hover { background: var(--bg2); color: var(--text); }
+.sn-step.sn-active { background: color-mix(in srgb, var(--clr-primary) 16%, transparent);
+  border-color: var(--clr-primary); color: var(--text); font-weight: 600; }
+.sn-step.sn-soon, .sn-step.sn-locked { opacity: .5; cursor: default; }
+.sn-step.sn-locked { font-style: italic; }
+
+.sn-badge { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+  border: 1.5px solid var(--border); color: var(--text3); }
+.sn-step.sn-done .sn-badge { background: var(--clr-primary); border-color: var(--clr-primary); color: #fff; }
+.sn-step.sn-active .sn-badge { border-color: var(--clr-primary); color: var(--clr-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--clr-primary) 22%, transparent); }
+.sn-ic  { flex-shrink: 0; width: 22px; text-align: center; font-size: 14px; }
+.sn-lbl { overflow: hidden; text-overflow: ellipsis; }
+.site-shell.sn-collapsed .sn-lbl { display: none; }
+.site-shell.sn-collapsed .sn-step { justify-content: center; padding: 7px 0; }
+
+/* Content column */
+.site-content { flex: 1; min-width: 0; display: flex; flex-direction: column;
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+.sn-crumb { flex-shrink: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 14px; border-bottom: 0.5px solid var(--border); font-size: 12px; color: var(--text3); }
+.sn-crumb b { color: var(--text2); font-weight: 600; }
+.sn-crumb .sn-ret { margin-left: auto; font-size: 12px; color: #fff; background: var(--clr-primary);
+  border: 0; border-radius: 8px; padding: 5px 11px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.sn-crumb .sn-ret:hover { background: var(--clr-primary-hover); }
+
+/* Prev / Next footer */
+.sn-stepnav { flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-top: 0.5px solid var(--border); background: var(--bg); }
+.sn-nav-btn { display: inline-flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--text);
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: 9px; padding: 7px 13px;
+  cursor: pointer; text-decoration: none; min-width: 0; }
+a.sn-nav-btn:hover { border-color: var(--clr-primary); }
+.sn-nav-btn small { font-size: 10px; color: var(--text3); }
+.sn-nav-btn.sn-disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+.sn-nav-btn.sn-next { text-align: right; }
+.sn-nav-btn.sn-primary { color: #fff; background: var(--clr-primary); border-color: var(--clr-primary); }
+.sn-nav-btn.sn-primary small { color: rgba(255,255,255,.85); }
+.sn-nav-btn.sn-primary:hover { background: var(--clr-primary-hover); }
+.sn-note, .sn-spacer { flex: 1; text-align: center; font-size: 11px; color: var(--text3); font-style: italic; }
+/* Print / PDF button — white, same as the Back button (it's a <button>, so reset UA chrome) */
+.sn-nav-btn.sn-print { font: inherit; text-align: center; }
+.sn-nav-btn.sn-print:hover { border-color: var(--clr-primary); }
+.sn-nav-btn.sn-print b { white-space: nowrap; }
+
+/* Soft gate hint — subtle amber dot on Next when the current step isn't finalized (not a block) */
+.sn-nav-btn.sn-hint { position: relative; }
+.sn-nav-btn.sn-hint::after { content: ''; position: absolute; top: -4px; right: -4px;
+  width: 9px; height: 9px; border-radius: 50%; background: #f0a020; border: 1.5px solid #fff;
+  box-shadow: 0 0 2px rgba(0,0,0,.35); }
+
+/* Print-only step header (project · step) — hidden on screen, shown when printing */
+.print-head { display: none; }
+
+/* ── Print: clean per-step PDF. Strips the app chrome, lets the scroll container flow across A4
+   pages, and DOES NOT touch .xpl-host, so "mod explicativ" prints exactly as left on screen.
+   pt.html / report.html keep their own @media print (they are full documents). ── */
+@media print {
+  /* force the LIGHT palette so a dark-theme user still gets a clean white PDF (no ink-heavy cards) */
+  [data-bs-theme="dark"] {
+    --bg:#f9f9f9 !important; --bg2:#f0f0f0 !important; --surface:#fff !important; --border:rgba(0,0,0,0.14) !important;
+    --text:#0f0f0f !important; --text2:#3d3d3d !important; --text3:#5c5c5c !important; --input-bg:#fff !important;
+    --clr-primary:#e07b00 !important; --clr-primary-hover:#c46b00 !important; }
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #site-topbar, #site-stepper, #site-stepnav, .sn-crumb, #sn-collapse,
+  .xpl-toggle, .btn, .addbtn, .str-rm, #sn-paywall-modal, .modal-backdrop { display: none !important; }
+  body:not([data-page="pt"]):not([data-page="report"]) .site-shell,
+  body:not([data-page="pt"]):not([data-page="report"]) .site-body,
+  body:not([data-page="pt"]):not([data-page="report"]) .site-content,
+  body:not([data-page="pt"]):not([data-page="report"]) [class$="-scroll"] {
+    display: block !important; height: auto !important; max-height: none !important;
+    overflow: visible !important; flex: none !important; padding: 0 !important; }
+  body:not([data-page="pt"]):not([data-page="report"]) .print-head {
+    display: flex !important; justify-content: space-between; align-items: baseline; gap: 12px;
+    font-size: 11px; color: #000; border-bottom: 1px solid #999; padding-bottom: 6px; margin-bottom: 12px; }
+  .print-head .ph-proj { font-weight: 600; }
+  .card, .metric, .ratio-box, .formula-card, table, tr { break-inside: avoid; page-break-inside: avoid; }
+  canvas { max-width: 100% !important; }
+}
+
+/* Mobile: stepper becomes an off-canvas drawer */
+@media (max-width: 900px) {
+  /* z-index 900: above the viz-page Leaflet map layers (#overlay 500, #controls/#legend 800,
+     leaflet panes) so the open drawer is not painted over by the grid map; still below the
+     topbar (1000), which slides in above it. */
+  #site-stepper { position: absolute; z-index: 900; height: 100%; box-shadow: 0 8px 30px rgba(0,0,0,.3);
+    transform: translateX(-110%); transition: transform .2s ease; }
+  .site-shell.sn-navopen #site-stepper { transform: translateX(0); }
+  .topbar-name .sn-sub { display: none; }
+}
+
+/* Mobile: wide data tables (yield monthly breakdown, cabling/protection schedules,
+   string-sizing) scroll horizontally within their card instead of overflowing off
+   screen / being clipped. The display:block turns the table into its own scroll box
+   while keeping the internal column layout. Scoped to .site-content so it never
+   touches chrome/print. */
+@media (max-width: 700px) {
+  .site-content table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* ── "Mod explicativ" learning blocks (shared by all step pages) ─────────── */
+.xpl-toggle { font-size: 11px; font-weight: 400; color: var(--text3); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.xpl-host { margin-top: 8px; display: none; }
+.xpl { background: var(--bg2); border: 0.5px solid var(--border); border-left: 3px solid var(--clr-primary); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
+.xpl-f { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--text); line-height: 1.5; }
+.xpl-eq { color: var(--text2); }
+.xpl-d { font-size: 11px; color: var(--text3); margin-top: 3px; line-height: 1.45; }
+.xpl-ref { font-size: 10px; color: var(--clr-primary); text-decoration: none; }
+
+
+/* ================= merged from viz.css ================= */
+/* viz.css — shared chrome for the grid-map (*Viz.html) reference pages.
+   Loaded after style.css + site-nav.css; themes via [data-bs-theme] variables.
+   The map data overlay + legend swatch colours stay inline (data semantics). */
+
+/* Slim title/stats strip at the top of .site-content (replaces the old #topbar). */
+.viz-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0;
+  padding: 8px 14px; border-bottom: 0.5px solid var(--border); background: var(--bg); }
+.viz-bar h1 { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.viz-bar .sep { width: 1px; height: 18px; background: var(--border); }
+#stats { font-size: 11px; color: var(--text3); display: flex; gap: 14px; flex-wrap: wrap; }
+#stats b { color: var(--text); }
+
+/* Map area fills the rest of the content card.
+   Note: style.css also defines #map (the sidebar mini-map, fixed height) — these
+   selectors are scoped under #map-wrap so they win on specificity, not load order. */
+#map-wrap { position: relative; flex: 1; min-height: 0; }
+#map-wrap #map     { position: absolute; inset: 0; width: auto; height: auto; border-radius: 0; }
+#map-wrap #overlay { position: absolute; inset: 0; width: auto; height: auto; pointer-events: none; z-index: 500; }
+
+/* The shared account avatar + dropdown live in the topbar. The floating map panels below
+   (#controls / #legend) sit at z-index 800, and nothing else lifts the topbar into its own
+   stacking context - so without this the dropdown (.sn-menu, z-index 60) is painted UNDER the
+   opacity panel and the legend. Promote the whole topbar above the map overlays. */
+#site-topbar { position: relative; z-index: 1000; }
+
+/* Floating panels over the map - SCOPED to the viz #map-wrap (merged from viz.css). On the step pages the
+   legend lives in the content card and must stay in normal flow (.legend), NOT float over the Next button. */
+#map-wrap #controls, #map-wrap #legend {
+  position: absolute; z-index: 800; background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px;
+  color: var(--text); box-shadow: 0 4px 16px rgba(0,0,0,.18); backdrop-filter: blur(3px); }
+#map-wrap #controls { top: 10px; right: 10px; min-width: 180px; }
+#map-wrap #legend   { bottom: 28px; right: 10px; min-width: 175px; }
+#map-wrap #controls h3, #map-wrap #legend h3 { font-size: 11px; color: var(--text2); margin-bottom: 8px; font-weight: 600; }
+
+.leg-row  { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.ctrl-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.ctrl-row label { color: var(--text2); flex: 1; }
+.ctrl-row input[type=range] { width: 75px; accent-color: var(--clr-primary); }
+.val { color: var(--clr-primary); min-width: 30px; text-align: right; }
+#loading { color: #f0a020; font-size: 11px; margin-top: 4px; display: none; }
+
+/* Theme the inline-styled selects inside the control panels (override inline dark colours). */
+#controls select { background: var(--input-bg) !important; color: var(--text) !important;
+  border: 0.5px solid var(--border) !important; border-radius: 4px; padding: 2px 4px; font-size: 11px; }
+
+#tooltip { position: fixed; background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border: 0.5px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px;
+  font-size: 12px; pointer-events: none; display: none; z-index: 9000; line-height: 1.7;
+  box-shadow: 0 4px 16px rgba(0,0,0,.22); }

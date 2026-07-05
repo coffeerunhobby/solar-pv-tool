@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ro" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Earth Energy Engine</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css?v=__APP_VERSION__">
+  <!-- set theme before paint to avoid flash (verbatim from the legacy pages) -->
+  <script>
+    (function () {
+      var m = document.cookie.match(/(?:^|;\s*)theme=(light|dark)/);
+      var dark = m ? m[1] === 'dark' : matchMedia('(prefers-color-scheme:dark)').matches;
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+    })();
+  </script>
+</head>
+<body>
+  <!-- display:contents keeps #root transparent to the .site-shell flex/height layout -->
+  <div id="root" style="display:contents"></div>
+
+  <!-- ══ Legacy foundation — CLASSIC scripts (top-level const stays global), dependency order.
+       Reused UNCHANGED from js/. Deliberately NOT loaded: gate.js, site-nav.js, app.js
+       (replaced by React), bootstrap.bundle.min.js (only site-nav.js used it).
+       LEAN SET: each migration phase adds the scripts its ported pages need —
+       P2: vendor/chart.umd.js, explain.js, canvas.js, obstacles.js, solar-geometry.js, convention.js …
+       P4: yield engine chain, leaflet+map.js (lazy), schema/pt engines.  ══ -->
+  <script src="/vendor/chart.umd.js"></script>
+  <script src="/js/config.js?v=__APP_VERSION__"></script>
+  <script src="/js/grid-deshuffle.js?v=__APP_VERSION__"></script>
+  <script src="/js/data-loader.js?v=__APP_VERSION__"></script>
+  <script src="/js/constants.js?v=__APP_VERSION__"></script>
+  <script src="/js/i18n_en.js?v=__APP_VERSION__"></script>
+  <script src="/js/i18n_ro.js?v=__APP_VERSION__"></script>
+  <script src="/js/i18n.js?v=__APP_VERSION__"></script>
+  <script src="/js/theme.js?v=__APP_VERSION__"></script>
+  <script src="/js/project-state.js?v=__APP_VERSION__"></script>
+  <script src="/js/site-map.js?v=__APP_VERSION__"></script>
+  <script src="/js/battery-list.js?v=__APP_VERSION__"></script>
+  <script src="/js/string-ui.js?v=__APP_VERSION__"></script>
+  <script src="/js/catalog.js?v=__APP_VERSION__"></script>
+  <script src="/js/explain.js?v=__APP_VERSION__"></script>
+  <script src="/js/solar-geometry.js?v=__APP_VERSION__"></script>
+  <script src="/js/convention.js?v=__APP_VERSION__"></script>
+  <script src="/js/obstacles.js?v=__APP_VERSION__"></script>
+  <script src="/js/canvas.js?v=__APP_VERSION__"></script>
+  <script src="/js/planes.js?v=__APP_VERSION__"></script>
+  <!-- yield/strings/connections engine chain (formulas MUST precede yield-engine) + all grids -->
+  <script src="/js/irradiance-ineichen.js?v=__APP_VERSION__"></script>
+  <script src="/js/irradiance-hofierka.js?v=__APP_VERSION__"></script>
+  <script src="/js/kt-png.js?v=__APP_VERSION__"></script>
+  <script src="/js/kt-grid.js?v=__APP_VERSION__"></script>
+  <script src="/js/horizon-png.js?v=__APP_VERSION__"></script>
+  <script src="/js/horizon-grid.js?v=__APP_VERSION__"></script>
+  <script src="/js/temp-png.js?v=__APP_VERSION__"></script>
+  <script src="/js/temp-grid.js?v=__APP_VERSION__"></script>
+  <script src="/js/tl-png.js?v=__APP_VERSION__"></script>
+  <script src="/js/tl-grid.js?v=__APP_VERSION__"></script>
+  <script src="/js/wind-png.js?v=__APP_VERSION__"></script>
+  <script src="/js/wind-grid.js?v=__APP_VERSION__"></script>
+  <script src="/js/elevation-png.js?v=__APP_VERSION__"></script>
+  <script src="/js/elevation.js?v=__APP_VERSION__"></script>
+  <script src="/js/formulas.js?v=__APP_VERSION__"></script>
+  <script src="/js/yield-engine.js?v=__APP_VERSION__"></script>
+  <!-- yield-ui.js DELIBERATELY NOT LOADED: its global runYield() reads removed legacy ids and
+       applyI18n() would invoke it on language switch — Yield.jsx inlines its 5 helpers instead -->
+
+  <!-- single-line schematic + Proiect Tehnic engines (iec-symbols BEFORE schema-svg; pt-texts BEFORE pt-doc) -->
+  <script src="/js/iec-symbols.js?v=__APP_VERSION__"></script>
+  <script src="/js/schema-svg.js?v=__APP_VERSION__"></script>
+  <script src="/js/pt-text-ro.js?v=__APP_VERSION__"></script>
+  <script src="/js/pt-text-en.js?v=__APP_VERSION__"></script>
+  <script src="/js/pt-doc.js?v=__APP_VERSION__"></script>
+  <script src="/js/electricity-prices.js?v=__APP_VERSION__"></script>
+  <script src="/js/share.js?v=__APP_VERSION__"></script>
+
+  <!-- React app (Vite rewrites this to the hashed /assets bundle at build) -->
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

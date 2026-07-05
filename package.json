@@ -1,0 +1,19 @@
+{
+  "name": "solar-pv",
+  "version": "1.0.0",
+  "description": "Solar Path & Yield Tool — Playwright test suite",
+  "scripts": {
+    "test": "node_modules/.bin/playwright test",
+    "test:headed": "node_modules/.bin/playwright test --headed",
+    "test:ui": "node_modules/.bin/playwright test --ui",
+    "test:mocked": "node_modules/.bin/playwright test --project=mocked",
+    "test:auth": "node_modules/.bin/playwright test --project=authenticated",
+    "test:screenshots": "node_modules/.bin/playwright test --project=screenshots",
+    "codegen": "node_modules/.bin/playwright codegen https://solar.coffeerunhobby.ro"
+  },
+  "devDependencies": {
+    "@gfx/zopfli": "^1.0.15",
+    "@playwright/test": "^1.60.0",
+    "geotiff": "^2.1.3"
+  }
+}

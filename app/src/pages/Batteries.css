@@ -1,0 +1,7 @@
+/* Battery DB — page-specific extras over DbPage.css (shared reference-DB
+   layout): architecture pills + inverter-compat tags. Verbatim from legacy. */
+.compat-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.compat-tag { font-size: 12px; font-weight: 600; color: var(--clr-primary); background: color-mix(in srgb, var(--clr-primary) 12%, transparent); border: 0.5px solid color-mix(in srgb, var(--clr-primary) 35%, transparent); border-radius: 7px; padding: 4px 9px; }
+.arch-pill { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em; border-radius: 6px; padding: 2px 6px; margin-left: 6px; vertical-align: middle; }
+.arch-hv { color: #b45309; background: color-mix(in srgb, #f0a020 18%, transparent); }
+.arch-lv { color: #2563eb; background: color-mix(in srgb, #2563eb 14%, transparent); }

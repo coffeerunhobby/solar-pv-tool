@@ -1,0 +1,17 @@
+/* Yield (step 6) — page-local styles, verbatim from legacy yield.html <style>.
+   Generic collision-prone names (.loc-note, .day-bar, .tbl-tab) scoped by
+   [data-page="yield"]; page-unique (.pv-scroll, .pv-str, #pv-* ids) unprefixed. */
+.pv-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+[data-page="yield"] .loc-note { font-size: 11px; color: var(--text3); margin-bottom: 8px; }
+.pv-str .sec { display: flex; align-items: center; }
+/* per-string S-chips use the shared .str-tag (style.css) + STR_COLORS (constants.js) */
+#pv-breakdown { width:100%; border-collapse:collapse; font-size:12px; }
+#pv-breakdown th, #pv-breakdown td { padding:4px 8px; text-align:right; border-bottom:.5px solid var(--border); }
+#pv-breakdown th:first-child, #pv-breakdown td:first-child { text-align:left; }
+#pv-breakdown tr.total td { font-weight:600; border-top:1px solid var(--border); }
+[data-page="yield"] .day-bar { display:flex; gap:.4rem; align-items:center; margin-bottom:.5rem; }
+[data-page="yield"] .day-bar select { max-width:220px; }
+/* monthly-table tabs (Energie / vs PVGIS) */
+#pv-table-tabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+[data-page="yield"] .tbl-tab { border:0.5px solid var(--border); background:var(--bg); color:var(--text2); font-size:11px; padding:3px 10px; border-radius:999px; cursor:pointer; }
+[data-page="yield"] .tbl-tab.on { background:var(--clr-primary); border-color:var(--clr-primary); color:#fff; }

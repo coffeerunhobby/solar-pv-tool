@@ -1,0 +1,3 @@
+/* Location (step 1) — page-local styles, verbatim from legacy index.html <style>.
+   The #map / #chart-area / .rg / .legend styles live in css/style.css (shared). */
+.idx-scroll { flex: 1; overflow-y: auto; padding: 14px; }

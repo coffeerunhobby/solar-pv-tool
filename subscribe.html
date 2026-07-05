@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Newsletter signup · Solar PV Tool</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css?v=1.2.4">
+</head>
+<body>
+
+<div class="container py-5" style="max-width:480px">
+  <div class="card">
+    <div class="card-body p-4">
+      <h1 class="h4 fw-bold mb-1">☀️ Solar PV Tool newsletter</h1>
+      <p class="text-muted small mb-4">Get updates about new features, irradiance/elevation data, and PV design tips.</p>
+
+      <label for="email" class="form-label small">Email address</label>
+      <input type="email" id="email" class="form-control mb-3"
+             placeholder="your@email.com" autocomplete="email">
+      <button id="btn" class="btn btn-primary w-100">Subscribe</button>
+
+      <div id="msg" class="mt-3" style="display:none"></div>
+
+      <div id="unsub-wrap" class="mt-3 small text-muted" style="display:none">
+        Unsubscribe link: <a id="unsub-link" href="#" target="_blank" style="word-break:break-all"></a>
+      </div>
+    </div>
+  </div>
+
+  <p class="mt-3 small"><a href="index.html" class="text-muted text-decoration-none">← Back to tool</a></p>
+</div>
+
+<script src="vendor/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+  var ENDPOINT = 'https://n3ky9b78wh.execute-api.eu-central-1.amazonaws.com/subscribe';
+  var SERVICE  = 'solar-pv';
+
+  var emailIn   = document.getElementById('email');
+  var btn       = document.getElementById('btn');
+  var msgEl     = document.getElementById('msg');
+  var unsubWrap = document.getElementById('unsub-wrap');
+  var unsubLink = document.getElementById('unsub-link');
+
+  btn.addEventListener('click', submit);
+  emailIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+
+  function submit() {
+    var email = emailIn.value.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showMsg('Please enter a valid email address.', 'danger');
+      emailIn.focus();
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = '...';
+    msgEl.style.display = 'none';
+    unsubWrap.style.display = 'none';
+
+    fetch(ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: email, service: SERVICE }),
+      signal:  AbortSignal.timeout(10000),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (json) {
+      if (json.success) {
+        var msg = json.already_subscribed
+          ? 'You are already subscribed with this address.'
+          : 'You are subscribed! You will receive updates by email.';
+        showMsg(msg, 'success');
+        if (json.token) {
+          var unsubUrl = location.origin + '/unsubscribe.html?t=' + encodeURIComponent(json.token);
+          unsubLink.href        = unsubUrl;
+          unsubLink.textContent = unsubUrl;
+          unsubWrap.style.display = 'block';
+        }
+      } else {
+        showMsg('Error: ' + (json.message || 'please try again.'), 'danger');
+      }
+    })
+    .catch(function () {
+      showMsg('Connection error - please try again.', 'danger');
+    })
+    .finally(function () {
+      btn.disabled    = false;
+      btn.textContent = 'Subscribe';
+    });
+  }
+
+  function showMsg(text, type) {
+    msgEl.textContent   = text;
+    msgEl.className     = 'mt-3 alert alert-' + type;
+    msgEl.style.display = 'block';
+  }
+}());
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+/* Schema (step 12) — page-local styles, verbatim from legacy schema.html
+   <style>. All page classes are already .sx-* namespaced (nothing collides with
+   the [data-page="protections"]-reserved .str-hdr/.res-grid/.v-box/.field-row/
+   .acc-* set); only the generic .no-data is scoped by [data-page]. */
+.sx-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+/* top row: placement · connections · designer; the schematic sits full-width below */
+.sx-top { display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 14px; align-items: start; }
+@media (max-width: 1000px) { .sx-top { grid-template-columns: 1fr; } }
+.sx-place, #sx-edges { max-height: 320px; overflow-y: auto; }
+
+.sx-field { margin-top: 4px; }
+.sx-field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+.sx-field input { width: 100%; padding: 6px 8px; border: 0.5px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); font-size: 13px; }
+
+.sx-rulebook { margin-top: 10px; border-top: 0.5px solid var(--border); padding-top: 8px; }
+.sx-rb-h { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text3); margin-bottom: 6px; }
+.sx-rule { font-size: 12px; padding: 5px 0; border-bottom: 0.5px solid var(--border); }
+.sx-rule:last-child { border-bottom: 0; }
+.sx-rule-top { display: flex; align-items: baseline; gap: 8px; }
+.sx-rule-ref { font-weight: 700; color: var(--text3); font-variant-numeric: tabular-nums; }
+.sx-rule-title { flex: 1; color: var(--text); font-weight: 500; }
+.sx-v-yes { color: var(--ok, #1f9d4d); font-weight: 600; white-space: nowrap; }
+.sx-v-no  { color: #e0533c; font-weight: 600; white-space: nowrap; }
+.sx-v-forced { color: #c77d0a; font-weight: 600; white-space: nowrap; }
+.sx-force { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text2); cursor: pointer; }
+.sx-crow { display: grid; grid-template-columns: 1fr 104px; gap: 6px; align-items: center; padding: 3px 0; font-size: 12px; }
+.sx-crow-l { color: var(--text2); }
+.sx-crow input { width: 100%; padding: 3px 6px; border: 0.5px solid var(--border); border-radius: 5px; background: var(--input-bg); color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sx-rule-detail { display: none; margin: 4px 0 2px; padding-left: 8px; border-left: 2px solid var(--border); }
+#sx-rules.xpl-on .sx-rule-detail { display: block; }
+.sx-kv { color: var(--text2); line-height: 1.55; }
+.sx-kv b { color: var(--text3); font-weight: 600; }
+.sx-justif { color: var(--text3); font-style: italic; margin-top: 3px; }
+
+.sx-place { font-size: 13px; }
+.sx-row { display: grid; grid-template-columns: 1fr 56px 56px; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 0.5px solid var(--border); }
+.sx-row:last-child { border-bottom: 0; }
+.sx-row .lbl { color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-row .lbl small { color: var(--text3); font-weight: 400; }
+.sx-lbl-inp { width: 62px; font-size: 11px; padding: 1px 4px; border: 0.5px solid var(--border); border-radius: 4px; background: var(--input-bg); color: var(--text); }
+.sx-lbl-inp:focus { border-color: var(--clr-primary); outline: none; }
+.sx-row select { width: 100%; padding: 3px 4px; border: 0.5px solid var(--border); border-radius: 5px; background: var(--input-bg); color: var(--text); font-size: 12px; }
+.sx-head { display: grid; grid-template-columns: 1fr 56px 56px; gap: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text3); padding-bottom: 4px; border-bottom: 0.5px solid var(--border); margin-bottom: 2px; }
+
+/* edge (connection) editor */
+.sx-erow { display: grid; grid-template-columns: 1fr 12px 1fr 22px; gap: 4px; align-items: center; padding: 3px 0; }
+.sx-erow select { width: 100%; padding: 3px 4px; border: 0.5px solid var(--border); border-radius: 5px; background: var(--input-bg); color: var(--text); font-size: 12px; }
+.sx-erow .arr { text-align: center; color: var(--text3); font-size: 12px; }
+.sx-erow .sx-del { border: 0; background: none; color: var(--text3); cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }
+.sx-erow .sx-del:hover { color: #e0533c; }
+.sx-btns { display: flex; gap: 8px; margin-top: 10px; }
+.sx-btns button { flex: 1; padding: 6px 8px; font-size: 12px; border: 0.5px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; }
+.sx-btns button:hover { border-color: var(--clr-primary); }
+
+.sx-wrap { border: 0.5px solid var(--border); border-radius: 8px; background: #fff; overflow: auto; }
+.sx-wrap svg { display: block; width: 100%; height: auto; min-width: 900px; }
+[data-page="schema"] .no-data { color: var(--text3); font-style: italic; font-size: 12.5px; padding: 12px; display: block; }

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Unsubscribe · Solar PV Tool</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css?v=1.2.4">
+</head>
+<body>
+
+<div class="container py-5" style="max-width:480px">
+  <div class="card">
+    <div class="card-body p-4">
+      <h1 class="h4 fw-bold mb-1">Unsubscribe</h1>
+      <p class="text-muted small mb-4" id="subtitle">No longer want updates? Enter your email address to confirm.</p>
+
+      <label for="email" class="form-label small">Email address</label>
+      <input type="email" id="email" class="form-control mb-3"
+             placeholder="your@email.com" autocomplete="email">
+      <button id="btn" class="btn btn-secondary w-100">Unsubscribe</button>
+
+      <div id="msg" class="mt-3" style="display:none"></div>
+    </div>
+  </div>
+
+  <p class="mt-3 small"><a href="index.html" class="text-muted text-decoration-none">← Back to tool</a></p>
+</div>
+
+<script src="vendor/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+  var ENDPOINT = 'https://n3ky9b78wh.execute-api.eu-central-1.amazonaws.com/unsubscribe';
+  var SERVICE  = 'solar-pv';
+
+  var emailIn = document.getElementById('email');
+  var btn     = document.getElementById('btn');
+  var msgEl   = document.getElementById('msg');
+  var subtitle = document.getElementById('subtitle');
+  var label   = document.querySelector('label[for="email"]');
+
+  var params     = new URLSearchParams(location.search);
+  var tokenParam = params.get('t') || '';
+  var emailParam = params.get('e') || '';
+
+  if (tokenParam) {
+    // Token path - auto-fire, hide form
+    emailIn.style.display = 'none';
+    label.style.display   = 'none';
+    btn.style.display     = 'none';
+    subtitle.textContent  = 'Processing your unsubscribe request...';
+    callUnsubscribe({ token: tokenParam });
+  } else {
+    // Manual path - pre-fill if available
+    if (emailParam) {
+      emailIn.value = emailParam;
+    } else {
+      try {
+        var stored = JSON.parse(localStorage.getItem('spv_t'));
+        if (stored && stored.email) emailIn.value = stored.email;
+      } catch (e) {}
+    }
+    btn.addEventListener('click', submit);
+    emailIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+  }
+
+  function submit() {
+    var email = emailIn.value.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showMsg('Please enter a valid email address.', 'danger');
+      emailIn.focus();
+      return;
+    }
+    btn.disabled    = true;
+    btn.textContent = '...';
+    msgEl.style.display = 'none';
+    callUnsubscribe({ email: email });
+  }
+
+  function callUnsubscribe(payload) {
+    fetch(ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(Object.assign({ service: SERVICE }, payload)),
+      signal:  AbortSignal.timeout(10000),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (json) {
+      subtitle.textContent = '';
+      if (json.success) {
+        showMsg('You have been unsubscribed. You will no longer receive our newsletter.', 'secondary');
+        emailIn.disabled = true;
+        btn.disabled     = true;
+      } else {
+        showMsg('Error: ' + (json.message || 'please try again.'), 'danger');
+        btn.style.display   = 'block';
+        btn.disabled        = false;
+        btn.textContent     = 'Unsubscribe';
+        emailIn.style.display = 'block';
+        label.style.display   = 'block';
+      }
+    })
+    .catch(function () {
+      subtitle.textContent = '';
+      showMsg('Connection error - please try again.', 'danger');
+      btn.style.display   = 'block';
+      btn.disabled        = false;
+      btn.textContent     = 'Unsubscribe';
+      emailIn.style.display = 'block';
+      label.style.display   = 'block';
+    });
+  }
+
+  function showMsg(text, type) {
+    msgEl.textContent   = text;
+    msgEl.className     = 'mt-3 alert alert-' + type;
+    msgEl.style.display = 'block';
+  }
+}());
+</script>
+</body>
+</html>

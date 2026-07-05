@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Test Viz - engine vs PVGIS (energy + irradiance, all months, all points)</title>
+<style>
+  :root { --bg:#0f1217; --panel:#161a22; --line:#262b36; --txt:#cdd6e6; --dim:#8a93a6;
+          --good:#2ecc71; --ok:#9acd32; --warn:#e0a93c; --bad:#e0533c; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:12px 18px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  h1 { font-size:15px; margin:0; font-weight:600; }
+  .sub { color:var(--dim); font-size:12px; }
+  #status { padding:10px 18px; color:var(--warn); }
+  #agg { padding:8px 18px; color:var(--dim); border-bottom:1px solid var(--line); }
+  #agg b { color:var(--txt); }
+  .wrap { padding:10px 18px 60px; }
+  table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+  th,td { padding:4px 8px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--dim); font-weight:600; position:sticky; top:0; background:var(--bg); cursor:pointer; }
+  td.name, th.name { text-align:left; }
+  tr.pt { cursor:pointer; }
+  tr.pt:hover { background:var(--panel); }
+  tr.mo td { color:var(--dim); background:#11151c; font-size:12px; }
+  .d { font-weight:600; }
+  .good{color:var(--good)} .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  .tag { font-size:10px; padding:1px 5px; border-radius:3px; background:#1d2531; color:var(--dim); }
+  .hint { color:var(--dim); font-size:11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>☀ Test Viz — engine vs PVGIS</h1>
+  <span class="sub" id="meta">loading…</span>
+  <span class="sub hint">click a row to expand the 12 months · click a header to sort · ΔE = energy, ΔH = irradiance · mounting = PVGIS-optimal tilt per point, az 0 N / 180 S (1 kWp, 14% loss)</span>
+</header>
+<div id="status">Loading grids + PVGIS reference…</div>
+<div id="agg"></div>
+<div class="wrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+
+<!-- engine + grid stack (same as the step pages, minus the UI/gate/project layers) -->
+<script src="js/config.js?v=1.2.4"></script>
+<script src="js/grid-deshuffle.js?v=1.2.4"></script>
+<script src="js/constants.js?v=1.2.4"></script>
+<script src="js/data-loader.js?v=1.2.4"></script>
+<script src="js/solar-geometry.js?v=1.2.4"></script>
+<script src="js/convention.js?v=1.2.4"></script>
+<script src="js/irradiance-ineichen.js?v=1.2.4"></script>
+<script src="js/irradiance-hofierka.js?v=1.2.4"></script>
+<script src="js/kt-png.js?v=1.2.4"></script>
+<script src="js/kt-grid.js?v=1.2.4"></script>
+<script src="js/horizon-png.js?v=1.2.4"></script>
+<script src="js/horizon-grid.js?v=1.2.4"></script>
+<script src="js/temp-png.js?v=1.2.4"></script>
+<script src="js/temp-grid.js?v=1.2.4"></script>
+<script src="js/tl-png.js?v=1.2.4"></script>
+<script src="js/tl-grid.js?v=1.2.4"></script>
+<script src="js/wind-png.js?v=1.2.4"></script>
+<script src="js/wind-grid.js?v=1.2.4"></script>
+<script src="js/formulas.js?v=1.2.4"></script><script src="js/yield-engine.js?v=1.2.4"></script>
+<script>
+const KWP=1, PR=0.86;   // matches build-testpoints.js (loss 14% -> pr 0.86); tilt + az are PER-POINT (PVGIS-optimal)
+const TCOPTS={ powModel:'huld', huldSet:'csi2025', tcModel:'noct', uc:25, uv:6.84 };
+const cls=d=>{const a=Math.abs(d);return a<=1?'good':a<=2?'ok':a<=5?'warn':'bad';};
+const f1=v=>v.toFixed(1), pc=d=>(d>=0?'+':'')+d.toFixed(1)+'%';
+const sum=a=>a.reduce((x,y)=>x+y,0);
+
+function ready(){ return typeof resolveKt==='function' && typeof KT_DATA!=='undefined' && KT_DATA &&
+  typeof TEMP_DATA!=='undefined' && TEMP_DATA && typeof WIND_DATA!=='undefined' && WIND_DATA; }   // no Kt tile now: de-biased global base only
+
+async function run(){
+  const data = await (await fetch('data/testpoints.json?v=1.2.4')).json();
+  document.getElementById('meta').textContent =
+    `${data.n} points · PVGIS ${data.generated} · ${data.mounting} · ${data.loss}% loss · v${typeof APP_VERSION!=='undefined'?APP_VERSION:'?'} · de-biased CLARA + terrain horizon`;
+  // wait for grids
+  let tries=0; while(!ready() && tries++<150) await new Promise(r=>setTimeout(r,200));
+  if(!ready()){ document.getElementById('status').textContent='⚠ grids did not load (check console / server)'; return; }
+  document.getElementById('status').remove();
+
+  // lazy terrain-horizon: await the coverage mask, then prefetch only the points that HAVE a tile (no 404s)
+  if (typeof ensureHorizonTile==='function') {
+    if (typeof horizonIndexReady!=='undefined') await horizonIndexReady;
+    await Promise.all(data.points.map(p=>ensureHorizonTile(p.lat, p.lon)));
+  }
+
+  const rows = data.points.map(p=>{
+    const terr = (typeof resolveHorizon==='function') ? resolveHorizon(p.lat, p.lon) : null;   // terrain horizon (lazy mountain tiles)
+    const hz = terr ? Array.from(terr) : new Array(36).fill(0);
+    const hzMax = terr ? Math.max(...terr) : 0;   // max terrain-horizon elevation (deg) at this point, 0 if flat/no tile
+    const r = calcYield(p.lat, p.lon, p.lon/15, p.tilt, p.az, KWP, PR, 0.20, hz, !!terr,
+                        clearSkyHofierka, declinationHofierka, 45, -0.004, 'hofierka', TCOPTS);
+    const monthly = r.monthly.map((e,i)=>({ ourE:e, pvE:p.pvE[i], ourH:r.monthlyIrrad[i], pvH:p.pvH[i] }));
+    const aE=sum(r.monthly), apE=sum(p.pvE), aH=sum(r.monthlyIrrad), apH=sum(p.pvH);
+    return { p, src:'base', hzMax, monthly, aE, apE, dE:(aE-apE)/apE*100, aH, apH, dH:(aH-apH)/apH*100 };
+  });
+
+  // aggregate
+  const mE=rows.reduce((s,r)=>s+Math.abs(r.dE),0)/rows.length, mH=rows.reduce((s,r)=>s+Math.abs(r.dH),0)/rows.length;
+  const bk=t=>rows.filter(r=>Math.abs(r.dH)<=t).length;
+  document.getElementById('agg').innerHTML =
+    `mean |Δ|: energy <b>${f1(mE)}%</b> · irradiance <b>${f1(mH)}%</b> &nbsp;|&nbsp; irradiance within ±1%: <b>${bk(1)}</b>/${rows.length} · ±2%: <b>${bk(2)}</b> · ±3%: <b>${bk(3)}</b> · ±5%: <b>${bk(5)}</b>`;
+
+  const thead = document.querySelector('#tbl thead');
+  thead.innerHTML = `<tr><th class="name" data-k="name">Point</th><th data-k="lat">lat,lon</th><th data-k="tilt">tilt</th><th>src</th>`+
+    `<th data-k="aE">our E</th><th>PVGIS E</th><th data-k="dE">ΔE</th>`+
+    `<th data-k="aH">our H(i)</th><th>PVGIS H(i)</th><th data-k="dH">ΔH</th></tr>`;
+  const tb = document.querySelector('#tbl tbody');
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function render(list){
+    tb.innerHTML='';
+    for(const r of list){
+      const tr=document.createElement('tr'); tr.className='pt';
+      tr.innerHTML=`<td class="name">${r.p.name}</td><td>${r.p.lat.toFixed(1)},${r.p.lon.toFixed(1)}</td>`+
+        `<td>${r.p.tilt}° ${r.p.az==0?'S':'N'}</td>`+
+        `<td><span class="tag">${r.src}${r.p.db&&r.p.db!=='?'?' · '+r.p.db:''}</span>${r.hzMax>0?` <span class="tag" title="terrain horizon applied (max blocking elevation)" style="background:#1d3320;color:#7ee787">⛰${r.hzMax.toFixed(0)}°</span>`:''}</td>`+
+        `<td>${r.aE.toFixed(0)}</td><td>${r.apE.toFixed(0)}</td><td class="d ${cls(r.dE)}">${pc(r.dE)}</td>`+
+        `<td>${r.aH.toFixed(0)}</td><td>${r.apH.toFixed(0)}</td><td class="d ${cls(r.dH)}">${pc(r.dH)}</td>`;
+      let open=false, moRows=[];
+      tr.onclick=()=>{ if(open){moRows.forEach(x=>x.remove());moRows=[];open=false;return;}
+        r.monthly.forEach((m,i)=>{ const dE=(m.ourE-m.pvE)/m.pvE*100, dH=(m.ourH-m.pvH)/m.pvH*100;
+          const mr=document.createElement('tr'); mr.className='mo';
+          const mcol = (typeof MCOLS!=='undefined') ? MCOLS[i] : 'var(--dim)';
+          mr.innerHTML=`<td class="name" style="color:${mcol};font-weight:600;border-left:3px solid ${mcol}">&nbsp;${MN[i]}</td><td></td><td></td><td></td>`+
+            `<td>${m.ourE.toFixed(1)}</td><td>${m.pvE.toFixed(1)}</td><td class="${cls(dE)}">${pc(dE)}</td>`+
+            `<td>${m.ourH.toFixed(1)}</td><td>${m.pvH.toFixed(1)}</td><td class="${cls(dH)}">${pc(dH)}</td>`;
+          tr.after(...moRows, mr); moRows.push(mr); });
+        open=true; };
+      tb.appendChild(tr);
+    }
+  }
+  render(rows);
+  // sortable headers
+  let sortK=null, asc=true;
+  thead.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{ const k=th.dataset.k;
+    asc = sortK===k ? !asc : true; sortK=k;
+    const key=r=> k==='name'?r.p.name : k==='lat'?r.p.lat : k==='tilt'?r.p.tilt : r[k];
+    rows.sort((a,b)=>{const x=key(a),y=key(b); return (typeof x==='string'?x.localeCompare(y):x-y)*(asc?1:-1);});
+    render(rows);
+  });
+}
+run().catch(e=>{ document.getElementById('status').textContent='⚠ '+e.message; console.error(e); });
+</script>
+</body>
+</html>

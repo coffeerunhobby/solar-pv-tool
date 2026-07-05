@@ -1,0 +1,14 @@
+/* Recalculation — page-local styles, verbatim from legacy recalc.html <style>. */
+.rec-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+[data-page="recalc"] .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+[data-page="recalc"] .kv:last-child { border-bottom: 0; }
+[data-page="recalc"] .kv .k { color: var(--text3); }
+[data-page="recalc"] .kv .v { color: var(--text); font-weight: 600; text-align: right; }
+[data-page="recalc"] .ratio-box { border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-top: 12px; border: 0.5px solid var(--border); }
+[data-page="recalc"] .ratio-ok   { background: color-mix(in srgb, var(--ok,#1f9d4d) 14%, transparent); border-color: var(--ok,#1f9d4d); }
+[data-page="recalc"] .ratio-warn { background: color-mix(in srgb, #f0a020 16%, transparent); border-color: #f0a020; }
+[data-page="recalc"] .ratio-none { color: var(--text3); font-style: italic; }
+.rec-links { margin-top: 10px; font-size: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
+.rec-links a { color: var(--clr-primary); text-decoration: none; }
+[data-page="recalc"] .pos { color: var(--ok,#1f9d4d); }
+[data-page="recalc"] .neg { color: #e0533c; }

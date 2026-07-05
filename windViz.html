@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wind Speed Grid Visualisation - Solar PV Tool</title>
+  <link rel="stylesheet" href="vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css?v=1.2.4">
+  <link rel="stylesheet" href="vendor/leaflet.css"/>
+  <script>
+    (function () {
+      var m = document.cookie.match(/(?:^|;\s*)theme=(light|dark)/);
+      var dark = m ? m[1] === 'dark' : matchMedia('(prefers-color-scheme:dark)').matches;
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+    })();
+  </script>
+</head>
+<body data-page="viz-wind">
+
+<div class="site-shell">
+  <div id="site-topbar"></div>
+  <div class="site-body">
+    <nav id="site-stepper"></nav>
+    <div class="site-content">
+      <div class="viz-bar">
+  <h1>💨 Wind Speed Grid - NASA POWER climatological monthly WS2M (2 m above ground)</h1>
+  <div class="sep"></div>
+  <div id="stats">
+    <span>Grid: <b id="st-grid">-</b></span>
+    <span>Max: <b id="st-max">-</b></span>
+    <span>Mean: <b id="st-mean">-</b></span>
+    <span>Visible: <b id="st-visible">-</b></span>
+  </div>
+</div>
+
+<div id="map-wrap">
+  <div id="map"></div>
+  <canvas id="overlay"></canvas>
+
+  <div id="controls">
+    <h3>Display</h3>
+    <div class="ctrl-row"><label>Month</label>
+      <input type="range" id="ctrl-month" min="1" max="12" step="1" value="1">
+      <span class="val" id="lbl-month">Jan</span></div>
+    <div class="ctrl-row"><label>Opacity</label>
+      <input type="range" id="ctrl-alpha" min="0.1" max="1" step="0.05">
+      <span class="val" id="lbl-alpha"></span></div>
+    <div id="loading" style="color:#fdd835;font-size:11px;margin-top:4px;display:none">Loading…</div>
+  </div>
+
+  <div id="legend">
+    <h3>Wind speed WS2M (m/s) - calm to gale</h3>
+    <div id="leg-ramp"></div>
+  </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- shared foundation -->
+<script src="vendor/bootstrap.bundle.min.js"></script>
+<script src="js/i18n_en.js?v=1.2.4"></script>
+<script src="js/i18n_ro.js?v=1.2.4"></script>
+<script src="js/i18n.js?v=1.2.4"></script>
+<script src="js/theme.js?v=1.2.4"></script>
+<script src="js/project-state.js?v=1.2.4"></script>
+<script src="js/site-map.js?v=1.2.4"></script>
+<script src="js/share.js?v=1.2.4"></script>
+<script src="js/site-nav.js?v=1.2.4"></script>
+
+<script src="vendor/leaflet.js"></script>
+<script src="js/viz-basemap.js?v=1.2.4"></script>
+<script src="js/config.js?v=1.2.4"></script>
+<script src="js/grid-deshuffle.js?v=1.2.4"></script>
+<script src="js/wind-png.js?v=1.2.4"></script>
+<script>
+let WIND_DATA = null;
+
+/* Grid constants from config.js (WIND_NLATS, WIND_NLONS, WIND_STEP, WIND_NMONTHS, WIND_LAT_MIN, WIND_LON_MIN) */
+const HALF = WIND_STEP / 2;
+
+/* ── colour scale (Beaufort-inspired) ── */
+/* Smooth ramp: deep blue (calm) -> cyan -> green -> yellow -> orange -> red (gale). */
+const WIND_STOPS = [
+  [ 0, [ 26,  35, 126]],  // #1a237e calm
+  [ 1, [ 21, 101, 192]],  // #1565C0 light air
+  [ 2, [ 66, 165, 245]],  // #42a5f5 light breeze
+  [ 3, [128, 203, 196]],  // #80cbc4 gentle breeze
+  [ 5, [165, 214, 167]],  // #a5d6a7 moderate breeze
+  [ 7, [253, 216,  53]],  // #fdd835 fresh breeze
+  [10, [251, 140,   0]],  // #fb8c00 strong breeze
+  [14, [229,  57,  53]],  // #e53935 near gale / gale
+];
+const windColor = vizRamp(WIND_STOPS);
+document.getElementById('leg-ramp').innerHTML = vizLegendBar(WIND_STOPS,
+  [{ v: 0, label: '0' }, { v: 3, label: '3' }, { v: 7, label: '7' },
+   { v: 10, label: '10' }, { v: 14, label: '&ge;14' }]);
+
+/* ── Map ── */
+const map = L.map('map').setView([20, 10], 3);
+vizBasemap(map);   /* theme-aware Carto basemap (js/viz-basemap.js) */
+
+/* ── Canvas overlay ── */
+const canvas = document.getElementById('overlay');
+const ctx    = canvas.getContext('2d');
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = r.width;
+  canvas.height = r.height;
+}
+
+/* Pre-render the selected month to an offscreen canvas ONCE (equirectangular, NLONS x NLATS,
+   image row 0 = north). draw() then blits one strip per latitude row at its Mercator y, so
+   per-frame cost is O(rows), not O(cells). Rebuilds only when the month changes. */
+let gridCanvas = null, builtMonth = -1;
+const _toRGB = s => s[0] === '#'
+  ? [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)]
+  : s.match(/\d+/g).map(Number);
+/* colour LUT by raw PNG byte (px = round(ws*10)) - built once, so a month rebuild is a pure copy */
+const _gridLUT = (function () { const l = new Array(256); for (let p = 0; p < 256; p++) l[p] = _toRGB(windColor(p / 10)); return l; })();
+function buildGridCanvas(mo) {
+  if (!WIND_DATA) return;
+  gridCanvas = gridCanvas || document.createElement('canvas');
+  gridCanvas.width = WIND_NLONS; gridCanvas.height = WIND_NLATS;
+  const g = gridCanvas.getContext('2d');
+  const img = g.createImageData(WIND_NLONS, WIND_NLATS), d = img.data;
+  for (let i = 0; i < WIND_NLATS; i++) {
+    const base = (WIND_NLATS - 1 - i) * WIND_NLONS;        // image row 0 = lat +90 (north)
+    const grow = (mo * WIND_NLATS + i) * WIND_NLONS;
+    for (let j = 0; j < WIND_NLONS; j++) {
+      const c = _gridLUT[WIND_DATA[grow + j]], o = (base + j) * 4;
+      d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  builtMonth = mo;
+}
+
+function draw() {
+  if (!WIND_DATA) return;
+  const mo = parseInt(document.getElementById('ctrl-month').value) - 1;
+  if (mo !== builtMonth) buildGridCanvas(mo);
+  if (!gridCanvas) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = parseFloat(document.getElementById('ctrl-alpha').value);
+  ctx.imageSmoothingEnabled = false;
+
+  const bnd  = map.getBounds();
+  const iMin = Math.max(0,              Math.floor((bnd.getSouth() - WIND_LAT_MIN) / WIND_STEP) - 1);
+  const iMax = Math.min(WIND_NLATS - 1, Math.ceil ((bnd.getNorth() - WIND_LAT_MIN) / WIND_STEP) + 1);
+  if (iMax < iMin) { document.getElementById('st-visible').textContent = '0'; return; }
+
+  const leftLon  = WIND_LON_MIN - HALF;                                  // cell 0 left edge
+  const rightLon = WIND_LON_MIN + (WIND_NLONS - 1) * WIND_STEP + HALF;   // last cell right edge
+  let visible = 0;
+  for (const wo of [-360, 0, 360]) {                                     // canonical + world-wrap copies
+    const xL = map.latLngToContainerPoint([0, leftLon  + wo]).x;
+    const xR = map.latLngToContainerPoint([0, rightLon + wo]).x;
+    if (xR < 0 || xL > canvas.width) continue;
+    const dw = xR - xL;
+    for (let i = iMin; i <= iMax; i++) {
+      const yT = map.latLngToContainerPoint([Math.min(WIND_LAT_MIN + i * WIND_STEP + HALF,  90), leftLon + wo]).y;
+      const yB = map.latLngToContainerPoint([Math.max(WIND_LAT_MIN + i * WIND_STEP - HALF, -90), leftLon + wo]).y;
+      if (yB <= yT) continue;
+      ctx.drawImage(gridCanvas, 0, WIND_NLATS - 1 - i, WIND_NLONS, 1, xL, yT, dw, yB - yT);
+      visible += WIND_NLONS;
+    }
+  }
+  document.getElementById('st-visible').textContent = '~' + visible.toLocaleString();
+}
+
+/* ── Map / window events ── */
+map.on('move zoom moveend zoomend', draw);
+window.addEventListener('resize', () => { resize(); draw(); });
+resize();
+
+/* ── Tooltip ── */
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const tip = document.getElementById('tooltip');
+
+/* debounce: compute + show the readout only when the mouse STOPS (was rebuilding the tooltip on
+   every mousemove - heavy: lat/lon math + 12-month array + innerHTML). */
+let _tipTimer = null, _tipEv = null;
+function _renderTip() {
+  const e = _tipEv; if (!e) return;
+  if (!WIND_DATA) { tip.style.display = 'none'; return; }
+  const rect = canvas.getBoundingClientRect();
+  const cpt  = map.containerPointToLatLng([e.clientX - rect.left, e.clientY - rect.top]);
+  const lat  = cpt.lat, lon = cpt.lng;
+
+  const iLat = Math.round((lat - WIND_LAT_MIN) / WIND_STEP);
+  const iLon = Math.round((lon - WIND_LON_MIN) / WIND_STEP);
+  if (iLat < 0 || iLat >= WIND_NLATS || iLon < 0 || iLon >= WIND_NLONS) {
+    tip.style.display = 'none'; return;
+  }
+
+  const fnum = x => (+x).toFixed(2).replace(/\.?0+$/, '');   // 2 dp, strip trailing zeros
+  const gLat = WIND_LAT_MIN + iLat * WIND_STEP;
+  const gLon = WIND_LON_MIN + iLon * WIND_STEP;
+  const mo   = parseInt(document.getElementById('ctrl-month').value) - 1;
+
+  const monthly = Array.from({length: 12}, (_, m) => WIND_DATA[(m * WIND_NLATS + iLat) * WIND_NLONS + iLon] / 10);
+  const cur = monthly[mo];
+  const ann = fnum(monthly.reduce((a, b) => a + b, 0) / 12);
+
+  tip.innerHTML =
+    `<b style="color:${windColor(cur)}">${fnum(cur)} m/s</b> - ${MONTH_NAMES[mo]}<br>` +
+    `Annual mean: <b>${ann} m/s</b><br>` +
+    `Grid node: ${gLat >= 0 ? fnum(gLat)+'°N' : fnum(-gLat)+'°S'}, ${gLon >= 0 ? fnum(gLon)+'°E' : fnum(-gLon)+'°W'}<br>` +
+    `<span style="color:#8a90a0;font-size:10px">` +
+    monthly.map((v, m) =>
+      `<span style="color:${m === mo ? '#fff' : '#555'}">${MONTH_NAMES[m]}: <span style="color:${m === mo ? windColor(v) : '#666'}">${fnum(v)}</span></span>`
+    ).join(' · ') +
+    `</span><br>` +
+    `<span style="color:#444;font-size:10px">Cursor: ${fnum(lat)}°, ${fnum(lon)}°</span>`;
+
+  tip.style.display = 'block';
+  const tipW = tip.offsetWidth || 260;
+  const left = (e.clientX + 14 + tipW > window.innerWidth)
+             ? (e.clientX - tipW - 10) : (e.clientX + 14);
+  tip.style.left = left + 'px';
+  tip.style.top  = (e.clientY - 10) + 'px';
+}
+const _mapWrap = document.getElementById('map-wrap');
+_mapWrap.addEventListener('mousemove', e => {
+  _tipEv = { clientX: e.clientX, clientY: e.clientY };
+  if (tip.style.display !== 'none') tip.style.display = 'none';   // drop the stale tip while moving
+  if (_tipTimer) clearTimeout(_tipTimer);
+  _tipTimer = setTimeout(_renderTip, 90);
+});
+_mapWrap.addEventListener('mouseleave', () => { if (_tipTimer) { clearTimeout(_tipTimer); _tipTimer = null; } tip.style.display = 'none'; });
+
+/* ── Controls ── */
+document.getElementById('ctrl-month').addEventListener('input', e => {
+  document.getElementById('lbl-month').textContent = MONTH_NAMES[parseInt(e.target.value) - 1];
+  draw();
+});
+document.getElementById('ctrl-alpha').value = VIZ_OPACITY;
+document.getElementById('lbl-alpha').textContent = VIZ_OPACITY.toFixed(2);
+document.getElementById('ctrl-alpha').addEventListener('input', e => {
+  document.getElementById('lbl-alpha').textContent = parseFloat(e.target.value).toFixed(2); draw();
+});
+
+/* ── Load wind PNG ── */
+document.getElementById('loading').style.display = '';
+loadWindPng(CONFIG.windUrl, {}).then(data => {
+  document.getElementById('loading').style.display = 'none';
+  WIND_DATA = data;
+
+  /* Stats across all nodes and months */
+  let maxWs = 0, sumWs = 0, count = 0;
+  const nCells = WIND_NLATS * WIND_NLONS * WIND_NMONTHS;
+  for (let k = 0; k < nCells; k++) {
+    const v = WIND_DATA[k] / 10;
+    if (v > maxWs) maxWs = v;
+    sumWs += v;
+    count++;
+  }
+
+  document.getElementById('st-grid').textContent = `${WIND_NLATS}×${WIND_NLONS} @ ${WIND_STEP}°`;
+  document.getElementById('st-max').textContent  = maxWs.toFixed(1) + ' m/s';
+  document.getElementById('st-mean').textContent = count ? (sumWs / count).toFixed(1) + ' m/s' : '-';
+
+  draw();
+}).catch(err => {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('st-grid').textContent = 'Error: ' + err.message;
+  console.error('Failed to load wind PNG:', err);
+});
+</script>
+<script>/* refit Leaflet after the shared chrome lays out */
+function _vizFit(){ try { map.invalidateSize(); } catch (e) {} }
+addEventListener('load', _vizFit); setTimeout(_vizFit, 350);</script>
+</body>
+</html>
