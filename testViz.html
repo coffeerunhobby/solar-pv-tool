@@ -79,14 +79,18 @@ async function run(){
   if(!ready()){ document.getElementById('status').textContent='⚠ grids did not load (check console / server)'; return; }
   document.getElementById('status').remove();
 
+  // ?flat — skip terrain horizon (the 82 MB mountain tiles aren't in a CI checkout).
+  // The CI accuracy gate uses it so its baseline is horizon-independent + reproducible.
+  const FLAT = new URLSearchParams(location.search).has('flat');
+
   // lazy terrain-horizon: await the coverage mask, then prefetch only the points that HAVE a tile (no 404s)
-  if (typeof ensureHorizonTile==='function') {
+  if (!FLAT && typeof ensureHorizonTile==='function') {
     if (typeof horizonIndexReady!=='undefined') await horizonIndexReady;
     await Promise.all(data.points.map(p=>ensureHorizonTile(p.lat, p.lon)));
   }
 
   const rows = data.points.map(p=>{
-    const terr = (typeof resolveHorizon==='function') ? resolveHorizon(p.lat, p.lon) : null;   // terrain horizon (lazy mountain tiles)
+    const terr = (!FLAT && typeof resolveHorizon==='function') ? resolveHorizon(p.lat, p.lon) : null;   // terrain horizon (lazy mountain tiles)
     const hz = terr ? Array.from(terr) : new Array(36).fill(0);
     const hzMax = terr ? Math.max(...terr) : 0;   // max terrain-horizon elevation (deg) at this point, 0 if flat/no tile
     const r = calcYield(p.lat, p.lon, p.lon/15, p.tilt, p.az, KWP, PR, 0.20, hz, !!terr,
@@ -101,6 +105,17 @@ async function run(){
   const bk=t=>rows.filter(r=>Math.abs(r.dH)<=t).length;
   document.getElementById('agg').innerHTML =
     `mean |Δ|: energy <b>${f1(mE)}%</b> · irradiance <b>${f1(mH)}%</b> &nbsp;|&nbsp; irradiance within ±1%: <b>${bk(1)}</b>/${rows.length} · ±2%: <b>${bk(2)}</b> · ±3%: <b>${bk(3)}</b> · ±5%: <b>${bk(5)}</b>`;
+
+  // Machine-readable export for the CI accuracy gate (tests/accuracy.spec.ts).
+  const worst = rows.map(r=>({name:r.p.name, dE:+r.dE.toFixed(2), dH:+r.dH.toFixed(2)}))
+                    .sort((a,b)=>Math.abs(b.dE)-Math.abs(a.dE));
+  window.__TESTVIZ__ = {
+    n: rows.length,
+    meanAbsDE: +mE.toFixed(3), meanAbsDH: +mH.toFixed(3),
+    maxAbsDE: +Math.max(...rows.map(r=>Math.abs(r.dE))).toFixed(3),
+    maxAbsDH: +Math.max(...rows.map(r=>Math.abs(r.dH))).toFixed(3),
+    worst5: worst.slice(0,5),
+  };
 
   const thead = document.querySelector('#tbl thead');
   thead.innerHTML = `<tr><th class="name" data-k="name">Point</th><th data-k="lat">lat,lon</th><th data-k="tilt">tilt</th><th>src</th>`+

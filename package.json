@@ -7,6 +7,7 @@
     "test:headed": "node_modules/.bin/playwright test --headed",
     "test:ui": "node_modules/.bin/playwright test --ui",
     "test:mocked": "node_modules/.bin/playwright test --project=mocked",
+    "test:accuracy": "node_modules/.bin/playwright test --project=accuracy",
     "test:auth": "node_modules/.bin/playwright test --project=authenticated",
     "test:screenshots": "node_modules/.bin/playwright test --project=screenshots",
     "codegen": "node_modules/.bin/playwright codegen https://solar.coffeerunhobby.ro"

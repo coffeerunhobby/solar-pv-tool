@@ -54,9 +54,10 @@ jobs:
       # Serve the legacy asset layer (:8091, /js /css /vendor /data + unported pages)
       # and the built SPA (vite preview :4173, proxies the above), then run the mocked
       # suite against the local build. Servers background in this same shell.
-      - name: Serve build + run mocked suite
+      - name: Serve build + run mocked + accuracy suites
         env:
           SPV_BASE_URL: http://localhost:4173
+          TESTVIZ_URL: http://localhost:8091/testViz.html
           CI: "true"
         run: |
           python3 -m http.server 8091 >/tmp/legacy.log 2>&1 &
@@ -70,6 +71,8 @@ jobs:
             sleep 2
           done
           npm run test:mocked
+          # engine-vs-PVGIS accuracy gate (testViz.html on :8091, horizon fixtures committed)
+          npm run test:accuracy
 
       - name: Upload Playwright report on failure
         if: failure()

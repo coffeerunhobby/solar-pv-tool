@@ -82,5 +82,13 @@ export default defineConfig({
       use:  { ...devices['Pixel 5'] },
       testMatch: /screenshots\.spec\.ts/,
     },
+
+    // ── 6. Accuracy — engine vs PVGIS gate (loads testViz.html) ──────────────
+    //    No credentials. Hits TESTVIZ_URL (default :8091), not BASE_URL.
+    {
+      name: 'accuracy',
+      use:  { ...devices['Desktop Chrome'] },
+      testMatch: /accuracy\.spec\.ts/,
+    },
   ],
 });
