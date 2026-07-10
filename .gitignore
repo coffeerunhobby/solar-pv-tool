@@ -10,7 +10,6 @@ app/node_modules_mac
 scripts/
 data/*.bin
 readme.txt
-deploy.sh
 
 # Playwright — auth state contains live credentials
 .playwright-auth/
