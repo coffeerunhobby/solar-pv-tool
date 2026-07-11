@@ -34,7 +34,7 @@ test('engine vs PVGIS: aggregate accuracy within thresholds', async ({ page }) =
 
   console.log('accuracy:', JSON.stringify(r));
   expect(errs, 'testViz page errors').toEqual([]);
-  expect(r.n, 'PVGIS reference point count').toBeGreaterThanOrEqual(60);
+  expect(r.n, 'PVGIS reference point count (fixture is exactly 69 — guard against silently dropping points)').toBe(69);
 
   expect(r.meanAbsDE, 'mean |ΔE| % (energy)').toBeLessThan(3.5);
   expect(r.meanAbsDH, 'mean |ΔH| % (irradiance)').toBeLessThan(3.2);

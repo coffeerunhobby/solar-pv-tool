@@ -65,6 +65,14 @@ for p in "${PORTED[@]}"; do
   grep -q "assets/index-" "$ROOT/app/dist/index.html" || {
     echo "!! app/dist/index.html has no hashed asset ref — bad build, aborting"; exit 1; }
 done
+# reverse: every route ported in app/src/ported.js must ALSO be in PORTED above,
+# else it works locally but never gets its S3 shell object created. Exclude the
+# intentional '/' (root object) and '/app-pilot.html' (dev-only, never deployed).
+while IFS= read -r name; do
+  case "$name" in app-pilot|'') continue;; esac
+  printf '%s\n' "${PORTED[@]}" | grep -qxF "$name" || {
+    echo "!! app/src/ported.js has '/$name.html' but deploy PORTED does not — aborting"; exit 1; }
+done < <(grep -oE "'/[a-z0-9-]+\.html'" "$ROOT/app/src/ported.js" | sed "s#'/##; s#\.html'##")
 # shell must never double-load the legacy chrome/gate (replaced by React)
 if grep -qE 'js/(gate|site-nav|app)\.js' "$ROOT/app/dist/index.html"; then
   echo "!! SPA shell references gate.js/site-nav.js/app.js — double-load guard, aborting"; exit 1
@@ -204,9 +212,15 @@ done
 #    Synced as a directory (not enumerated) so new mountain tiles ship without editing this script. ──
 if [ -d "$ROOT/data/horizon" ] && compgen -G "$ROOT/data/horizon/*.png" > /dev/null; then
   echo "  syncing data/horizon/ (terrain-horizon tiles)…"
-  aws s3 sync "$ROOT/data/horizon/" "s3://$BUCKET/data/horizon/" --region "$REGION" \
+  # NOTE: --size-only skips a same-byte-size content change (rare for these PNGs;
+  # dropping it re-uploads all ~80 MB by mtime every deploy — deliberate tradeoff).
+  # Set CHANGED only when the sync actually uploaded/deleted something, so a no-op
+  # deploy does not trigger a CloudFront invalidation.
+  hz=$(aws s3 sync "$ROOT/data/horizon/" "s3://$BUCKET/data/horizon/" --region "$REGION" \
     --exclude "*.bak" --exclude ".*" \
-    --cache-control "$TTL_DATA" --content-type "image/png" --size-only && CHANGED=1
+    --cache-control "$TTL_DATA" --content-type "image/png" --size-only)
+  [ -n "$hz" ] && printf '%s\n' "$hz"
+  printf '%s\n' "$hz" | grep -qE '^(upload|delete):' && CHANGED=1
 fi
 
 # ── Equipment catalog (data/db): content-hashed IMMUTABLE json + a short-cache manifest.
@@ -216,12 +230,19 @@ fi
 if [ -d "$ROOT/data/db" ] && [ -f "$ROOT/data/db/manifest.json" ]; then
   echo "  syncing data/db/ (equipment catalog)…"
   # hashed registry files → immutable, long cache (manifest handled separately below)
-  aws s3 sync "$ROOT/data/db/" "s3://$BUCKET/data/db/" --region "$REGION" \
+  db=$(aws s3 sync "$ROOT/data/db/" "s3://$BUCKET/data/db/" --region "$REGION" \
     --exclude "manifest.json" --exclude "*.bak" --exclude ".*" \
-    --cache-control "public,max-age=31536000,immutable" --content-type "application/json" --size-only && CHANGED=1
-  # manifest → short cache + revalidate (the freshness checker)
-  aws s3 cp "$ROOT/data/db/manifest.json" "s3://$BUCKET/data/db/manifest.json" --region "$REGION" \
-    --cache-control "max-age=60,must-revalidate" --content-type "application/json" >/dev/null && CHANGED=1
+    --cache-control "public,max-age=31536000,immutable" --content-type "application/json" --size-only)
+  [ -n "$db" ] && printf '%s\n' "$db"
+  printf '%s\n' "$db" | grep -qE '^(upload|delete):' && CHANGED=1
+  # manifest → short cache + revalidate (the freshness checker). Only re-upload +
+  # mark CHANGED when its CONTENT differs from the deployed one — a plain cp always
+  # uploads, which would mark CHANGED and invalidate on EVERY (even no-op) deploy.
+  remote_mf=$(aws s3 cp "s3://$BUCKET/data/db/manifest.json" - --region "$REGION" 2>/dev/null || true)
+  if [ "$remote_mf" != "$(cat "$ROOT/data/db/manifest.json")" ]; then
+    aws s3 cp "$ROOT/data/db/manifest.json" "s3://$BUCKET/data/db/manifest.json" --region "$REGION" \
+      --cache-control "max-age=60,must-revalidate" --content-type "application/json" >/dev/null && CHANGED=1
+  fi
   # prune remote hashed files not referenced by the current manifest (prevents growth;
   # the manifest's 60 s TTL + invalidation makes a stale-pointer 404 window negligible)
   # cd + relative require so it works on both macOS and Windows/Git-Bash (Node-for-Windows

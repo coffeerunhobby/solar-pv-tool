@@ -9,8 +9,9 @@
    - fires window.onGateAuthed() after auth (share.js chains its ?share= landing
      off this hook — share.js is loaded untouched in the shell)
    - exposes window.gateLogout() (used by the account menu; legacy contract)
-   The MutationObserver anti-tamper is gone BY DESIGN: React renders the gated
-   route's content only while authed — there is nothing to un-hide. */
+   The MutationObserver anti-tamper is gone BY DESIGN: routes.jsx does not mount a
+   gated route's Shell/Page while the overlay is up (status 'gate'), so there is
+   nothing behind it to un-hide. */
 import { createContext, useContext, useEffect, useState } from 'react';
 
 const GATE_KEY      = 'spv_t';

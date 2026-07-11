@@ -115,14 +115,23 @@ export function RouteFrame({ route }) {
   const mapEntry = SITE_MAP.find((e) => e.id === route.id) || { id: route.id };
   const entry = { ...mapEntry, paywalled: route.paywalled };
   const Page = route.Component;
+  /* Gate at the RENDER level, not just visually: never mount a gated route's
+     Shell/Page while the login overlay is up (status 'gate'), so removing the
+     overlay reveals nothing (the legacy gate.js used a MutationObserver for this;
+     here we simply don't render it). Content still shows during 'checking' (the
+     silent revalidation window) so a returning paid user isn't blanked — matching
+     the legacy fail-open UX. */
+  const showContent = !route.gated || gate.status !== 'gate';
 
   return (
     <>
-      <Shell entry={entry}>
-        <PageBoundary resetKey={route.id + ':' + identity}>
-          <Page key={identity} />
-        </PageBoundary>
-      </Shell>
+      {showContent && (
+        <Shell entry={entry}>
+          <PageBoundary resetKey={route.id + ':' + identity}>
+            <Page key={identity} />
+          </PageBoundary>
+        </Shell>
+      )}
       {route.gated && gate.status === 'gate' && <GateOverlay />}
     </>
   );
