@@ -14,7 +14,7 @@
    0.9 dev branch is open; when 0.9 is declared stable, close it and go to the 1.0.0 release
    candidate. To bump: change APP_VERSION here AND `perl -i -pe 's/\?v=[\d.]+/?v=NEW/g' *.html`.
    See the dev guide "Versioning". */
-const APP_VERSION = '1.2.5';
+const APP_VERSION = '1.2.6';
 const _v = '?v=' + APP_VERSION;   // data-PNG cache-buster (JS/CSS busters live literally in the HTML)
 
 /* ── PV model physical constants — SINGLE SOURCE OF TRUTH ──────────────────

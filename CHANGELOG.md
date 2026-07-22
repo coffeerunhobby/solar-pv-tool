@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.6] - Fix: Proiect Tehnic (PT) page would not scroll
+
+- The PT document page could not be scrolled on screen (desktop) - the whole document was stuck at the
+  top. Cause: a stray `*/` inside the `app/src/pages/Pt.css` header comment (in `.pt-*/#pt-*`) closed the
+  comment early, so the very next rule (`.pt-scroll { flex:1; overflow-y:auto }`) got an invalid selector and
+  was dropped - the scroll container lost its scrolling. Reworded the comment. (Exactly the `*/`-in-comment
+  trap the dev guide warns about.) Verified: the container now bounds to the viewport and scrolls.
+
 ## [1.2.5] - Add JinkoSolar Tiger Neo JKM590N-72HL4-BDV (590 W)
 
 - New module: **JinkoSolar Tiger Neo JKM590N-72HL4-BDV (590 W)** — N-type TOPCon bifacial dual-glass,
