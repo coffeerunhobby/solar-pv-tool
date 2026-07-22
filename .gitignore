@@ -7,7 +7,11 @@ app/.nm-win-old
 # node_modules_win = Windows deps; macOS uses an off-share symlink. See MOBILE.md "node_modules".
 app/node_modules_win
 app/node_modules_mac
-scripts/
+scripts/*
+# ...but the deploy-critical build scripts must ship: deploy.sh runs shuffle-grids.cjs
+# (grid obfuscation) in CI, and build-db-json.cjs regenerates the served catalog.
+!scripts/shuffle-grids.cjs
+!scripts/build-db-json.cjs
 data/*.bin
 readme.txt
 
