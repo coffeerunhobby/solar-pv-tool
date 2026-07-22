@@ -26,7 +26,7 @@
 
   /* Stamped by scripts/build-db-json.cjs — the seed's version + the hashed
      filenames it was generated from. DO NOT hand-edit. */
-  var CATALOG_SEED = {"version":2,"files":{"modules":"modules.265c959e.json","inverters":"inverters.c7fb3b02.json","batteries":"batteries.b507f97f.json"}};
+  var CATALOG_SEED = {"version":3,"files":{"modules":"modules.d57e08fe.json","inverters":"inverters.c7fb3b02.json","batteries":"batteries.b507f97f.json"}};
 
   var CACHE_KEY = 'spv_catalog';
   var CDN_ORIGIN = 'https://solar.coffeerunhobby.ro/';   // absolute for the mobile WebView (localhost origin)

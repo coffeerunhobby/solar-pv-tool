@@ -3838,6 +3838,26 @@ const MODULE_LIST = [
     cpv: 1,
   },
   {
+    id:      'jinko-solar-jkm590n-72hl4-bdv',
+    brandId:  'jinko-solar',
+    name:    'JinkoSolar Tiger Neo JKM590N-72HL4-BDV (590 W)',
+    note:    'N-type TOPCon mono-Si bifacial dual-glass, 144 half-cells (72×2), 22.84% eff, 2278×1134×30 mm, 31.0 kg, 1500V max. NMOT 45°C. Source: comparepv.com / JKM570-590N-72HL4-BDV datasheet.',
+    voc:  52.9,
+    vmp:  44.17,
+    isc:  14.07,
+    imp:  13.36,
+    lv:   -0.25,
+    li:    0.045,
+    nmot:  45,
+    pmax: 590, length: 2278, width: 1134,
+    gamma: -0.29,   /* Pmpp temp coeff %/°C */
+    efficiency: 22.84,   /* datasheet STC module efficiency % */
+    cellType:   'TOPCon',
+    weight:     31,   /* kg */
+    datasheet: 'https://jinkosolar.eu/wp-content/uploads/2025/11/JKM570-590N-72HL4-BDV-F5C1-EN.pdf',
+    cpv: 1,
+  },
+  {
     id:      'jinko-solar-jkm455n-48hl4m-dv',
     brandId:  'jinko-solar',
     name:    'JinkoSolar Tiger Neo JKM455N-48HL4M-DV (455 W)',

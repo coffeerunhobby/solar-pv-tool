@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.5] - Add JinkoSolar Tiger Neo JKM590N-72HL4-BDV (590 W)
+
+- New module: **JinkoSolar Tiger Neo JKM590N-72HL4-BDV (590 W)** — N-type TOPCon bifacial dual-glass,
+  144 half-cells (72×2), 22.84% eff, 2278×1134×30 mm, 31.0 kg. Datasheet-accurate: Voc 52.9 V, Isc 14.07 A,
+  Vmp 44.17 V, Imp 13.36 A, γPmax −0.29 %/°C, NOCT 45 °C (comparepv.com / JKM570-590N-72HL4-BDV datasheet).
+- Added to the seed (`MODULE_LIST`) and regenerated the served catalog → **manifest v3, 119 modules**
+  (`node scripts/build-db-json.cjs`; new `modules.d57e08fe.json`, old hash pruned; `catalog.js` re-stamped).
+  Existing installs pick it up via the catalog sync; this release also refreshes the bundled seed.
+
 ## [1.2.4] - Equipment catalog: served JSON + device cache + sync (add a panel with no app release)
 
 - **The module/inverter/battery DB is no longer hardcoded-only.** It was giant const arrays in
