@@ -144,7 +144,7 @@ var PTDoc = (function () {
 
     return {
       meta: meta, grid: grid, sizing: sizing, cons: cons, strings: strings, perString: perString,
-      mgeo: mgeo, comp: comp, conn: conn, ss: ss,
+      mgeo: mgeo, comp: comp, conn: conn, ss: ss, prot: st.protections || {}, eco: st.economics || {},
       v: {  // flat substitution map
         kwp: kwp != null ? fnum(kwp) : null,
         pinvKw: pinvW != null ? fnum(pinvW / 1000) : null,
@@ -534,7 +534,53 @@ var PTDoc = (function () {
       }) } });
     }
 
-    /* 7 — teste / PIF */
+    /* 7 — protecții: the switchgear selection + verification (course pt. 16). Values are
+       READ from what the steps persisted — protections.dc (relation-(20) window + chosen
+       gPV fuse, per string) and connections.ac (per-inverter breaker) — so the document
+       never re-derives the selection. */
+    var pdc = ((C.prot || {}).dc) || [];
+    var pac = ((C.conn || {}).ac) || [];
+    if (pdc.length || pac.length) {
+      num++;
+      var pz = chap('protectii', { num: num, title: txt('protectii.title'), pageBreak: true });
+      pz.blocks.push(h2(num + ' ' + esc(txt('protectii.title'))));
+      pz.blocks.push(p(esc(txt('protectii.intro'))));
+
+      if (pdc.length) {
+        var sn2 = 1;
+        pz.blocks.push(h3(num + '.' + sn2 + ' ' + esc(txt('protectii.dcTitle'))));
+        pz.blocks.push(p(esc(txt('protectii.dcRule'))));
+        pz.blocks.push({ table: { head: txt('protectii.dcCols').map(esc), rows: pdc.map(function (d) {
+          return [esc(d.label), fnum(d.isc), fnum(1.25 * d.imp), fnum(d.lo), fnum(d.hi),
+                  '<b>' + fnum(d.fuse) + '</b>',
+                  esc(txt(d.required ? 'protectii.dcReq' : 'protectii.dcOpt')),
+                  d.inWin ? esc(txt('protectii.ok')) : '<span class="pt-miss">' + esc(txt('protectii.bad')) + '</span>'];
+        }), cls: 'pt-strtbl' } });
+        if (pdc.some(function (d) { return !d.required; })) pz.blocks.push(p('<i>' + esc(txt('protectii.dcSingle')) + '</i>'));
+        var vmaxDc = (C.comp && invById(C.comp.inverterId)) ? invById(C.comp.inverterId).vinvmax : null;
+        var ucDc = pdc[0] ? pdc[0].ucDc : null;
+        if (vmaxDc) pz.blocks.push(p(sub(txt('protectii.dcNoteUn'), { vmax: fnum(vmaxDc) }, 'protectii')));
+        if (ucDc)   pz.blocks.push(p(sub(txt('protectii.dcNoteSpd'), { ucdc: fnum(ucDc) }, 'protectii')));
+        if (vmaxDc) pz.blocks.push(p(sub(txt('protectii.dcNoteSep'), { vmax: fnum(vmaxDc) }, 'protectii')));
+      }
+
+      if (pac.length) {
+        var sn3 = pdc.length ? 2 : 1;
+        pz.blocks.push(h3(num + '.' + sn3 + ' ' + esc(txt('protectii.acTitle'))));
+        pz.blocks.push(p(esc(txt('protectii.acRule'))));
+        pz.blocks.push({ table: { head: txt('protectii.acCols').map(esc), rows: pac.map(function (L, i) {
+          var ok = L.mcb != null && L.iac != null && L.mcb >= L.iac;
+          return ['I' + (i + 1), fnum(L.iac), '<b>' + fnum(L.mcb) + '</b>',
+                  ok ? esc(txt('protectii.ok')) : '<span class="pt-miss">' + esc(txt('protectii.bad')) + '</span>'];
+        }) } });
+        pz.blocks.push(p(esc(txt('protectii.acNoteRcd'))));
+        pz.blocks.push(p(esc(txt('protectii.acNoteSpd'))));
+        var icc = (C.prot || {}).iccKA;
+        if (icc != null) pz.blocks.push(p(sub(txt('protectii.acNoteIcc'), { icc: fnum(icc) }, 'protectii')));
+      }
+    }
+
+    /* 8 — teste / PIF */
     num++;
     var ts = chap('teste', { num: num, title: txt('teste.title'), pageBreak: true });
     ts.blocks.push(h2(num + ' ' + esc(txt('teste.title'))));
@@ -627,6 +673,42 @@ var PTDoc = (function () {
       if (!nStr) _missing.push({ chapter: 'boq', field: 'strings' });
     })();
 
+    /* 11 — analiză economică (course pt. 19). Values are READ from economics.results,
+       which the Economics step persists — the payback / IRR bisection / NPV and the
+       4-mode self-consumption model live only in that page, and are not re-derived here. */
+    var eres = ((C.eco || {}).results) || null;
+    if (eres && eres.real) {
+      num++;
+      var ec = chap('economic', { num: num, title: txt('economic.title'), pageBreak: true });
+      var cur = eres.currency || '';
+      ec.blocks.push(h2(num + ' ' + esc(txt('economic.title'))));
+      ec.blocks.push(p(sub(txt('economic.intro'), { n: eres.n, rate: fnum(eres.rate) }, 'economic')));
+      var ER = txt('economic.rows');
+      function ecell(x, dp) { return x == null || !isFinite(x) ? '-' : fnum(x); }
+      function erow(lbl, um, a, b) {
+        return [esc(lbl), esc(um), ecell(a), ecell(b)];
+      }
+      var R1 = eres.real, R2 = eres.optim;
+      ec.blocks.push({ table: { head: txt('economic.cols').map(esc), rows: [
+        erow(ER.prod,  txt('economic.umKwh'), (R1.eauto + R1.einj), R2 ? (R2.eauto + R2.einj) : null),
+        erow(ER.eauto, txt('economic.umKwh'), R1.eauto, R2 ? R2.eauto : null),
+        erow(ER.einj,  txt('economic.umKwh'), R1.einj,  R2 ? R2.einj : null),
+        erow(ER.scr,   txt('economic.umPct'), R1.scRate * 100, R2 ? R2.scRate * 100 : null),
+        erow(ER.b,     cur, R1.B, R2 ? R2.B : null),
+        erow(ER.inv,   cur, R1.Iprog, R2 ? R2.Iprog : null),
+        erow(ER.tr,    txt('economic.umAni'), R1.trProg, R2 ? R2.trProg : null),
+        erow(ER.rir,   txt('economic.umPct'), R1.rirProg != null ? R1.rirProg * 100 : null,
+                                              R2 && R2.rirProg != null ? R2.rirProg * 100 : null),
+        erow(ER.vna,   cur, R1.vnaProg, R2 ? R2.vnaProg : null),
+      ], widths: ['46%', '14%', '20%', '20%'] } });
+      var rirPct = R1.rirProg != null ? R1.rirProg * 100 : null;
+      var good = rirPct != null && eres.rate != null && rirPct >= eres.rate && R1.vnaProg > 0;
+      ec.blocks.push(p(sub(txt(good ? 'economic.verdictOk' : 'economic.verdictBad'),
+        { rir: rirPct != null ? fnum(rirPct) : '-', rate: fnum(eres.rate),
+          vna: fnum(R1.vnaProg) + ' ' + cur, n: eres.n }, 'economic')));
+      ec.blocks.push(p('<i>' + esc(txt('economic.note')) + '</i>'));
+    }
+
     /* Anexa 1 — graphs carried over from the retired client PDF */
     var ax = chap('anexa1', { pageBreak: true, sectionMark: 'anexa1', tocTitle: txt('anexa1.title') });
     ax.blocks.push(h2(esc(txt('anexa1.title'))));
@@ -689,6 +771,28 @@ var PTDoc = (function () {
        result + the inverter-window verdict, PER STRING. The math is the SHARED
        sizeString() (string-ui.js) - the same function the Strings page and the Teorie
        page call, so the document can never disagree with the app. */
+    /* Conductor power losses (course pt. 15 / rel. (21)-(23)) — read from what the
+       Conexiuni step persisted (connections.losses); the PT never re-derives them. */
+    var lss = (C.conn || {}).losses || {};
+    if (Array.isArray(lss.dc) && lss.dc.length) {
+      ax.blocks.push(h3(esc(txt('anexa1.lossTitle'))));
+      ax.blocks.push(p(esc(txt('anexa1.lossIntro'))));
+      var lrows = lss.dc.map(function (d) {
+        return [esc(d.label + ' (c.c.)'), fnum(d.len), fnum(d.section), fnum4(d.R), fnum(d.imp), fnum(d.dP)];
+      });
+      ((C.conn || {}).ac || []).forEach(function (L, i) {
+        lrows.push(['I' + (i + 1) + ' (c.a.)', fnum(C.conn.lenAC), fnum(L.section),
+                    fnum4(L.section ? (0.0179 * (C.conn.lenAC || 0) / L.section) : 0), fnum(L.iac),
+                    L.dP != null ? fnum(L.dP) : '-']);
+      });
+      ax.blocks.push({ table: { head: txt('anexa1.lossCols').map(esc), rows: lrows, cls: 'pt-strtbl' } });
+      ax.blocks.push(p(sub(txt('anexa1.lossTot'), {
+        dcw: fnum(lss.dcW), dcpct: lss.dcPct != null ? fnum(lss.dcPct) : '-',
+        acw: fnum(lss.acW), acpct: lss.acPct != null ? fnum(lss.acPct) : '-',
+        totw: fnum(lss.totalW) }, 'anexa1')));
+      ax.blocks.push(p('<i>' + esc(txt('anexa1.lossNote')) + '</i>'));
+    }
+
     if (C.strings.length && typeof sizeString === 'function') {
       var ssv = C.ss || {};
       var gmn = ssv.gmin != null ? +ssv.gmin : 100, gmx = ssv.gmax != null ? +ssv.gmax : 1000;

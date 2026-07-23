@@ -130,7 +130,7 @@ function stringG(s, Gmin, Gmax, cache) {
 
 /* ── Per-string DC cards (verbatim HTML builder from legacy renderStrings;
    seeding/persist moved to the component, Explain gated on learnOn) ─────── */
-function buildStringsHtml(strings, cables, dropDC, TaMin, TaMax, Gmin, Gmax, gCache, learnOn) {
+function buildStringsHtml(strings, cables, dropDC, TaMin, TaMax, Gmin, Gmax, gCache, learnOn, sizedOut) {
   if (!strings.length) {
     return '<div class="card"><span class="no-data">' + tr('cx.nostrings') + '</span></div>';
   }
@@ -184,6 +184,13 @@ function buildStringsHtml(strings, cables, dropDC, TaMin, TaMax, Gmin, Gmax, gCa
     /* Verify with the chosen section, exactly as the course does it: (16) then (15) */
     var R_C     = RHO_CU * lenM / S_final;                  // (16)
     var dropAct = 2 * R_C * impStr / vmpS * 100;            // (15)
+    /* conductor power loss, course rel. (21): ΔP_cc = 2·R_C·I²mp-STC. Collected into
+       `sizedOut` so the page can PERSIST it (the PT quotes the losses + the resulting
+       efficiency; nothing re-derives them). */
+    var dP_dc = 2 * R_C * impStr * impStr;
+    if (sizedOut) sizedOut.push({ id: s.id != null ? s.id : idx, label: 'S' + (idx + 1),
+      len: lenM, section: S_final, R_C: R_C, imp: impStr, drop: dropAct,
+      dP: dP_dc, pdc: (mod.pmax || 0) * (s.count || 0) });
 
     /* Fuse sizing (IEC 62548 / course formula) */
     var fuseNeeded = np > 1;
@@ -346,7 +353,14 @@ function acLinesFor(comp, ph, mat, lenM, dMax) {
     var S_final = nextStd(STD_CROSS, Math.max(S_vd, S_amp, 1.5));
     var R_C = rho * lenM / S_final;
     var dropAct = factor * R_C * iac / vRef * 100;
-    return { pac: pac, iac: iac, S_vd: S_vd, S_final: S_final, R_C: R_C, dropAct: dropAct, mcb: nextStd(STD_MCB, iac) };
+    /* Conductor power loss — course rel. (22) 1F: ΔP = 2·R·I², (23) 3F: ΔP = 3·R·I².
+       ⚠ This coefficient is NOT the voltage-drop `factor`: the drop uses √3 for three-phase
+       (line-to-line), while the loss counts 3 loaded conductors. Using `factor` here
+       under-reports three-phase losses by √3 (~42%). */
+    var lossFactor = ph === 3 ? 3 : 2;
+    var dP = lossFactor * R_C * iac * iac;
+    return { pac: pac, iac: iac, S_vd: S_vd, S_final: S_final, R_C: R_C, dropAct: dropAct,
+             dP: dP, dPpct: pac > 0 ? dP / pac * 100 : null, mcb: nextStd(STD_MCB, iac) };
   });
   return { units: units, lines: lines };
 }
@@ -492,11 +506,32 @@ export default function Connections() {
      these must be written even when the engineer only opens this step and changes nothing.
      The deep-equality guard stops the patch→re-render→patch loop. */
   useEffect(() => {
-    const ac = acLinesFor(comp, +phases, matAC, +lenAC || 10, +dropAC || 1.0).lines
-      .map((L) => ({ pac: L.pac, iac: L.iac, section: L.S_final, mcb: L.mcb, drop: L.dropAct }));
-    const prev = (Project.section('connections') || {}).ac || [];
-    if (JSON.stringify(prev) !== JSON.stringify(ac)) Project.patch('connections', { ac });
-  }, [JSON.stringify(comp.inverters), comp.inverterId, comp.pacInv, phases, matAC, lenAC, dropAC]);  // eslint-disable-line react-hooks/exhaustive-deps
+    const acCalc = acLinesFor(comp, +phases, matAC, +lenAC || 10, +dropAC || 1.0).lines;
+    const ac = acCalc.map((L) => ({ pac: L.pac, iac: L.iac, section: L.S_final,
+      mcb: L.mcb, drop: L.dropAct, dP: L.dP }));
+    /* Conductor POWER LOSSES (course rel. (21) DC, (22)/(23) AC): summed per side and
+       expressed as a percentage of the nominal DC / AC power. `dcSized` is filled by
+       buildStringsHtml during this render. Combining these with the inverter efficiency
+       gives the global electrical efficiency — that last step needs an `eta` field on
+       INVERTER_LIST, which does not exist yet, so only the conductor losses are stored. */
+    const dcW  = dcSized.reduce((a, d) => a + (d.dP || 0), 0);
+    const acW  = acCalc.reduce((a, L) => a + (L.dP || 0), 0);
+    const pdcW = dcSized.reduce((a, d) => a + (d.pdc || 0), 0);
+    const pacT = acCalc.reduce((a, L) => a + (L.pac || 0), 0);
+    const losses = {
+      dc: dcSized.map((d) => ({ label: d.label, len: d.len, section: d.section,
+                                R: d.R_C, imp: d.imp, dP: d.dP })),
+      dcW: dcW, acW: acW, totalW: dcW + acW,
+      dcPct: pdcW > 0 ? dcW / pdcW * 100 : null,
+      acPct: pacT > 0 ? acW / pacT * 100 : null,
+    };
+    const prev = Project.section('connections') || {};
+    if (JSON.stringify(prev.ac || []) !== JSON.stringify(ac) ||
+        JSON.stringify(prev.losses || {}) !== JSON.stringify(losses)) {
+      Project.patch('connections', { ac, losses });
+    }
+  }, [JSON.stringify(comp.inverters), comp.inverterId, comp.pacInv, phases, matAC, lenAC, dropAC,
+      JSON.stringify(strings), JSON.stringify(cables), dropDC]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Done once there is at least one sized string to cable (legacy trigger). */
   useEffect(() => {
@@ -506,7 +541,8 @@ export default function Connections() {
   /* per-string G memo — per mount (location can change between visits) */
   const gCache = useRef({}).current;
 
-  const stringsHtml = buildStringsHtml(strings, cables, +dropDC || 1.5, TaMin, TaMax, Gmin, Gmax, gCache, learnOn);
+  const dcSized = [];
+  const stringsHtml = buildStringsHtml(strings, cables, +dropDC || 1.5, TaMin, TaMax, Gmin, Gmax, gCache, learnOn, dcSized);
   const genHtml     = buildGenHtml(strings);
   const acHtml      = buildAcHtml(comp, +phases, matAC, +lenAC || 10, +dropAC || 1.0, learnOn);
 

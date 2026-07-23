@@ -106,7 +106,7 @@ const Project = (function () {
                      stringVocCold: null, valid: null },
       connections: { cables: {}, dropDC: null, phases: null, matAC: null, // step 9 - electrical connections
                      lenAC: null, dropAC: null,                           // cables = { stringId: one-way m }
-                     ac: [] },                                            // COMPUTED per inverter: [{pac,iac,section,mcb,drop}] -
+                     ac: [], losses: {} },                                            // COMPUTED per inverter: [{pac,iac,section,mcb,drop}] -
                                                                           // persisted by Connections.jsx so the PT (cap. "Soluția de
                                                                           // racordare") + parts list quote them without re-deriving
       protections: { net: null, iccKA: null, distDC: null, distAC: null, // step 10 - switchgear/protection design inputs
@@ -114,7 +114,7 @@ const Project = (function () {
       economics:   { currency: 'RON', wProdReal: null, wProdOptim: null, wConsum: null,  // step 11 - Analiză economică
                      cfv: null, aprogram: null, e1: null, e2: null, n: null, rate: null,  // Neamț pts 18-19, rel. (21)-(28)
                      scMode: null, rac: null, dayFrac: null, battId: null,               // self-consumption model: 'rata'|'lunar'|'zinoapte'|'baterie'; Rac %; daytime-consumption %; battId = BATTERY_LIST id for the expert battery sim
-                     country: null, eurPerWp: null },                                    // country = ISO2 for e1 prefill; eurPerWp = turnkey benchmark for C_FV estimate
+                     country: null, eurPerWp: null, results: null },                                    // country = ISO2 for e1 prefill; eurPerWp = turnkey benchmark for C_FV estimate
       schema:      { layout: {} },                                       // single-line editor: { deviceId: {col,row} } cartouche-cell placement overrides
       boq:         { rows: [] },                                          // step 12 - Lista de cantități MANUAL rows: [{cap,um,cant,sec}] (sec: 'echip'|'elec'|'tabl'|'civ'); auto rows are derived in pt-doc.js
       defectoscopy:{ moduleId: null, g: null, tc: null, points: [] },     // step 17 - I-V diagnostics; points = VERBATIM UI rows

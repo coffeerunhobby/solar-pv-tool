@@ -72,6 +72,38 @@ function getInverter(id) {
 }
 function strColor(idx) { return (typeof STR_COLORS !== 'undefined') ? STR_COLORS[idx % STR_COLORS.length] : '#888'; }
 
+/* ── PURE per-string DC protection selection (course relation (20)) ──────────
+   Lifted out of the render loop so the page can PERSIST what it selects
+   (`protections.dc`) — the Proiect Tehnic "Protecții" chapter quotes the window
+   bounds, the chosen gPV fuse and the verdict instead of re-deriving them, and the
+   parts list can carry the fuse rating. Same single-source-of-truth pattern as
+   acLinesFor() in Connections.jsx and sizeString() in string-ui.js.
+     max(Isc-STC ; 1.25·Imp-STC) <= Inf <= min(2·Isc-STC ; IprodFV ; IprodInv)
+   IprodFV = module max series fuse (mod.maxfuse, from the datasheet DB) unless the
+   design card overrides it; IprodInv is manual-only. */
+function dcProtectionFor(mod, s, inp, Vmax) {
+  var np  = s.np || 1;
+  var ns  = s.ns || (s.count ? Math.max(1, Math.round(s.count / np)) : 1);
+  var Isc = +mod.isc, Imp = +mod.imp;
+  var fvVal  = (inp.iprodFV > 0) ? inp.iprodFV : (+mod.maxfuse > 0 ? +mod.maxfuse : 0);
+  var fvAuto = !(inp.iprodFV > 0) && +mod.maxfuse > 0;      // came from the module DB
+  var lo   = Math.max(Isc, 1.25 * Imp);
+  var caps = [{ v: 2 * Isc, lbl: '2·I<sub>sc</sub>' }];
+  if (fvVal > 0)        caps.push({ v: fvVal,        lbl: 'I<sub>prod,FV</sub>' });
+  if (inp.iprodInv > 0) caps.push({ v: inp.iprodInv, lbl: 'I<sub>prod,inv</sub>' });
+  var hiCap = caps.reduce(function (a, b) { return b.v < a.v ? b : a; });
+  var fuse  = pickFuse(lo, hiCap.v);
+  return {
+    ns: ns, np: np, isc: Isc, imp: Imp,
+    fvVal: fvVal, fvAuto: fvAuto, lo: lo, hi: hiCap.v, hiLbl: hiCap.lbl, caps: caps,
+    fuse: fuse,
+    inWin: fuse >= lo && fuse <= hiCap.v,
+    required: np >= 2,                    // reverse fault current only with >=2 parallel strings
+    iscMppt: np * Isc,
+    ucDc: Vmax ? nextStd(DC_UC, Vmax) : null,   // DC SPD Uc >= highest inverter Vmax
+  };
+}
+
 /* gPV fuse in the formula-(20) window [lo, hi]; smallest standard ≥ lo within window. */
 function pickFuse(lo, hi) {
   for (var i = 0; i < GPV_FUSE.length; i++) if (GPV_FUSE[i] >= lo && GPV_FUSE[i] <= hi) return GPV_FUSE[i];
@@ -125,6 +157,24 @@ export default function Protections() {
     Project.patch('protections', { ...inp });   // exact legacy saveState payload
   }, [icc, distDC, distAC, iprodFV, iprodInv, bodyOverride, net]);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* Persist the COMPUTED per-string DC protection selection so the Proiect Tehnic
+     ("Protecții" chapter) and the parts list can quote the formula-(20) window, the
+     chosen gPV fuse and the verdict without re-deriving them. Written on every visit
+     (no first-render skip) since the document needs them even if nothing is edited;
+     the deep-equality guard stops a patch→re-render→patch loop. */
+  useEffect(() => {
+    const dc = strings.map((s, i) => {
+      const mod = getModule(s.moduleId);
+      if (!mod) return null;
+      const P = dcProtectionFor(mod, s, inp, Vmax);
+      return { id: s.id != null ? s.id : i, label: 'S' + (i + 1), ns: P.ns, np: P.np,
+               isc: P.isc, imp: P.imp, lo: P.lo, hi: P.hi, fuse: P.fuse,
+               inWin: P.inWin, required: P.required, iprodFV: P.fvVal || null, ucDc: P.ucDc };
+    }).filter(Boolean);
+    const prev = (Project.section('protections') || {}).dc || [];
+    if (JSON.stringify(prev) !== JSON.stringify(dc)) Project.patch('protections', { dc });
+  }, [JSON.stringify(strings), icc, iprodFV, iprodInv, bodyOverride, Vmax]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   /* legacy: mark done at render end once strings + inverter exist */
   useEffect(() => {
     if (strings.length && inv && !Project.isDone('protections')) Project.markDone('protections');
@@ -157,18 +207,11 @@ export default function Protections() {
          IprodFV = the module's max series fuse (mod.maxfuse, auto from the datasheet DB when
          present); the manual design-card input overrides it. IprodInv (inverter max fuse) is a
          datasheet value, manual only. The binding upper term = the smallest of the ones we have. */
-      var fvVal  = (inp.iprodFV > 0) ? inp.iprodFV : (+mod.maxfuse > 0 ? +mod.maxfuse : 0);
-      var fvAuto = !(inp.iprodFV > 0) && +mod.maxfuse > 0;   /* came from the module DB */
-      var lo   = Math.max(Isc, 1.25 * Imp);
-      var caps = [{ v: 2 * Isc, lbl: '2·I<sub>sc</sub>' }];
-      if (fvVal > 0)         caps.push({ v: fvVal,        lbl: 'I<sub>prod,FV</sub>' });
-      if (inp.iprodInv > 0)  caps.push({ v: inp.iprodInv, lbl: 'I<sub>prod,inv</sub>' });
-      var hiCap = caps.reduce(function (a, b) { return b.v < a.v ? b : a; });
-      var hi    = hiCap.v;
-      var fuse = pickFuse(lo, hi);
-      var inWin = fuse >= lo && fuse <= hi;
-      var required = np >= 2;                 // reverse fault current only with ≥2 parallel strings
-      var iscMppt  = np * Isc;
+      /* selection math lives in the shared dcProtectionFor() above — do NOT re-implement it */
+      var P = dcProtectionFor(mod, s, inp, Vmax);
+      var fvVal = P.fvVal, fvAuto = P.fvAuto, lo = P.lo, caps = P.caps;
+      var hiCap = { v: P.hi, lbl: P.hiLbl }, hi = P.hi;
+      var fuse = P.fuse, inWin = P.inWin, required = P.required, iscMppt = P.iscMppt;
       /* fuse-link body/holder: manual override (design card) else auto pick by voltage + current */
       var ovr = null;
       for (var bi = 0; inp.bodyOverride && bi < GPV_BODY.length; bi++) if (GPV_BODY[bi].size === inp.bodyOverride) ovr = GPV_BODY[bi];

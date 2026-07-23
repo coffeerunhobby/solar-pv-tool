@@ -365,6 +365,26 @@ function setupEconomics() {
     var scOpt  = { model: scMode, rac: rac, dayFrac: dayFrac, batt: batt, prodMonthly: sz.optimalMonthlyProd, consMonthly: cons.monthly };
     var real = scenario(wp, wc, e1, e2, cfv, aprog, n, rate, scReal);
     var opt  = wpo != null ? scenario(wpo, wc, e1, e2, cfv, aprog, n, rate, scOpt) : null;
+
+    /* Persist the COMPUTED economics next to the inputs, so the Proiect Tehnic financial
+       chapter can quote B / Tr / RIR / VNA without re-deriving them (the self-consumption
+       model, the RIR bisection and the NPV live only in this page's closures). Same
+       pattern as connections.ac / protections.dc. Deep-equality guarded. */
+    (function () {
+      if (!real) return;
+      var keep = function (x) {
+        return x ? { B: x.B, eauto: x.eauto, einj: x.einj, scRate: x.scRate,
+                     trProp: isFinite(x.trProp) ? x.trProp : null,
+                     trProg: isFinite(x.trProg) ? x.trProg : null,
+                     rirProp: x.rirProp, rirProg: x.rirProg,
+                     vnaProp: x.vnaProp, vnaProg: x.vnaProg,
+                     Iprop: x.Iprop, Iprog: x.Iprog } : null;
+      };
+      var res = { real: keep(real), optim: keep(opt), n: n, rate: rate,
+                  currency: document.getElementById('eco-cur').value };
+      var prev = (Project.section('economics') || {}).results;
+      if (JSON.stringify(prev) !== JSON.stringify(res)) Project.patch('economics', { results: res });
+    })();
     renderScNote(real, scMode, wp, wc);
 
     var note = document.getElementById('eco-optnote');

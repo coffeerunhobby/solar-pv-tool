@@ -5,6 +5,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.10] - PT: Protecții + Analiză economică chapters, conductor power losses
+
+- **Protecții step now persists what it selects** (`protections.dc` = per string
+  `{label,ns,np,isc,imp,lo,hi,fuse,inWin,required,iprodFV,ucDc}`): the course relation-(20)
+  selection was computed inline inside the render loop and thrown away. Extracted into a pure
+  `dcProtectionFor()` and written on every visit (deep-equality guarded), so the upcoming PT
+  "Protecții" chapter and the parts list can quote the window bounds, the chosen gPV fuse and the
+  verdict without re-deriving them. Same pattern as `acLinesFor()` and `sizeString()`.
+  Verified: window [16.59, 25] A with the 25 A module max-series-fuse binding the upper term →
+  gPV 20 A in-window; `required` false for a single string, true at 2 parallel; SPD Uc 1200 V ≥ 1100 V.
+- **NEW PT chapter "PROTECȚII ȘI APARATAJ DE COMUTAȚIE"** (course pt. 16) - inserted as cap. 7, so the
+  following chapters renumber. Per string: Isc, 1,25·Imp, the relation-(20) window bounds, the chosen
+  gPV fuse, whether it is mandatory (only with ≥2 parallel strings) and the in-window verdict; then the
+  fuse/disconnector Un ≥ Vmax,inv and DC SPD Uc notes. Per inverter: I inv,ca, breaker In and the
+  In ≥ I inv,ca check, plus the RCD type, AC SPD and breaking-capacity notes. All values are READ from
+  `protections.dc` + `connections.ac` - the document re-derives nothing.
+- **Conductor power losses (course pt. 15, rel. (21)-(23)) are now computed and documented.** They did
+  not exist anywhere before: `Connections.jsx` had the conductor resistance R and the voltage drop, but
+  never ΔP. Now computed per segment (DC per string, AC per inverter), summed, expressed as a % of the
+  nominal DC/AC power, persisted as `connections.losses`, and rendered as a table + totals in ANEXA 1.
+  > ⚠ Caught during verification: the three-phase loss initially reused the voltage-drop coefficient
+  > (√3, line-to-line) instead of the loss coefficient (3 loaded conductors), under-reporting every
+  > three-phase conductor loss by ~42%. Now `lossFactor = ph === 3 ? 3 : 2`, hand-checked
+  > (3 × 0.0859 Ω × 14.43² = 53.70 W).
+  > The **global electrical efficiency** the course asks for additionally needs the inverter conversion
+  > efficiency, and `INVERTER_LIST` has **no `eta` field** - so only the conductor losses are stored and
+  > a note states the combination explicitly. Adding `eta` (226 rows) is a datasheet scrape like `maxfuse`.
+- **NEW PT chapter "ANALIZĂ ECONOMICĂ"** (course pt. 19) - cap. 11. The **designed** system and the
+  **optim** reference system (pt. 18, azimuth 0 + optimal tilt) side by side: annual yield,
+  self-consumed / injected energy, self-consumption rate, annual benefit B, investment, payback Tr,
+  IRR and NPV, then a verdict comparing IRR against the discount rate. The economics step already had
+  all the math in pure closures (`selfConsumed` 4-mode model, `benefit`, `payback`, `rir` bisection,
+  `vna`) and already assembled the result object - it simply was not persisted, so `render()` now
+  writes `economics.results` (deep-equality guarded) and the document reads it. **No math was
+  duplicated or re-derived.**
+  Verified end to end: B = 4800×1.30 + 7200×0.65 = 10 920 RON, Tr = 45 000/10 920 = 4.12 yr,
+  IRR 23.93 % > 7 % → positive verdict; optim variant 3.86 yr / 25.61 %.
+- **Still absent** vs the Neamț template: pts 20-22 (Gantt / organizare șantier, protecția muncii + PSI,
+  protecția mediului) - pure normative text, no computation needed - and the `eta` inverter field
+  required for the global electrical efficiency.
+
 ## [1.2.9] - Proiect Tehnic: breviar de calcul + chapter 6 sections + 2 new equipment rows
 
 - **ANEXA 1 now contains a real "Breviar de calcul - dimensionarea șirurilor"**: PER STRING, each §11
