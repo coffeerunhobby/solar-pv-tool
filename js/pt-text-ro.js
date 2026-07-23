@@ -259,6 +259,62 @@ window.PT_TEXT_RO = {
     note: 'Valorile de mai sus rezultă din datele introduse la pasul de analiză economică (prețuri, cost, orizont, rată). Durata de viață a invertorului fiind de circa 10 ani, pentru orizonturi de analiză mai mari costul acestuia se consideră de două ori.',
   },
 
+  psi: {
+    title: 'MĂSURI DE PROTECȚIA MUNCII ȘI PSI',
+    intro: 'Execuția, punerea în funcțiune, exploatarea și mentenanța CEF se realizează cu respectarea legislației de securitate și sănătate în muncă și de apărare împotriva incendiilor. Lucrările se execută numai de personal calificat și autorizat, instruit corespunzător riscurilor specifice instalațiilor fotovoltaice.',
+    sLegal: 'Cadru legal',
+    legal: [
+      'Legea 319/2006 a securității și sănătății în muncă, cu normele metodologice de aplicare (HG 1425/2006);',
+      'HG 1146/2006 privind cerințele minime de securitate pentru utilizarea echipamentelor de muncă;',
+      'HG 1048/2006 privind cerințele minime pentru utilizarea echipamentului individual de protecție;',
+      'HG 1091/2006 privind cerințele minime de securitate și sănătate pentru locul de muncă;',
+      'Legea 307/2006 privind apărarea împotriva incendiilor, cu modificările ulterioare;',
+      'Normativ P118 privind securitatea la incendiu a construcțiilor;',
+      'Normativ I7/2011 pentru proiectarea, execuția și exploatarea instalațiilor electrice.',
+    ],
+    sRisc: 'Riscuri specifice instalațiilor fotovoltaice și măsuri asociate',
+    risc: [
+      'RISC ELECTRIC PERMANENT PE PARTEA DE CURENT CONTINUU: modulele fotovoltaice produc tensiune ori de câte ori sunt iluminate și NU pot fi scoase de sub tensiune prin deconectare. Circuitele de c.c. se consideră permanent sub tensiune; intervențiile se execută cu separatorul de sarcină c.c. deschis, cu modulele acoperite sau pe timp de noapte, folosind scule izolate 1000 V și echipament individual de protecție electroizolant.',
+      'ARC ELECTRIC DE CURENT CONTINUU: arcul de c.c. nu are trecere naturală prin zero și nu se stinge de la sine. Se interzice întreruperea circuitelor de c.c. sub sarcină prin deconectarea conectorilor; manevrele se fac exclusiv cu aparatajul de comutație prevăzut în proiect.',
+      'LUCRUL LA ÎNĂLȚIME: montajul pe acoperiș se execută cu sisteme de oprire a căderii (ham complet, ancoraje verificate, linii de viață), schele sau platforme conforme, cu interzicerea lucrului pe vânt puternic, precipitații sau suprafețe alunecoase.',
+      'MANIPULARE: modulele au suprafață mare și se comportă ca o velă la vânt; se manipulează de minimum două persoane, cu mănuși de protecție.',
+      'MANEVRE: înainte de orice intervenție se verifică absența tensiunii, se realizează separarea vizibilă și se blochează aparatajul împotriva reanclanșării accidentale, cu montarea indicatoarelor de interdicție.',
+    ],
+    sPsi: 'Măsuri de prevenire și stingere a incendiilor',
+    psi: [
+      'stingerea eventualelor incendii în zona instalației electrice se face NUMAI cu stingătoare cu pulbere sau cu dioxid de carbon; se interzice utilizarea apei asupra instalațiilor aflate sub tensiune;',
+      'tabloul de racord și invertorul se etichetează vizibil cu avertizarea privind prezența unei surse de tensiune de curent continuu, care rămâne activă și după deconectarea de la rețea;',
+      'la tabloul general și la blocul de măsură se semnalizează prezența centralei fotovoltaice, pentru informarea echipelor de intervenție;',
+      'se asigură accesul liber la aparatajul de separare și la traseele de evacuare;',
+      'se respectă distanțele și condițiile de amplasare față de elementele combustibile ale construcției.',
+    ],
+  },
+
+  mediu: {
+    title: 'MĂSURI PENTRU PROTECȚIA MEDIULUI',
+    intro: 'Investiția are un impact pozitiv asupra mediului: energia produsă din sursă regenerabilă înlocuiește energie preluată din rețea, reducând emisiile de gaze cu efect de seră cu aproximativ {co2} kg CO₂ pe an. Măsurile de mai jos se aplică pe durata execuției și a exploatării.',
+    sExpl: 'În exploatare',
+    expl: [
+      'instalația nu produce emisii în atmosferă, ape uzate tehnologice sau deșeuri în timpul funcționării;',
+      'nu se utilizează substanțe periculoase în procesul de producere a energiei;',
+      'nivelul de zgomot este nesemnificativ, generat exclusiv de ventilația invertorului;',
+      'nu se modifică regimul apelor și nu se afectează solul, montajul realizându-se pe construcția existentă.',
+    ],
+    sExec: 'În timpul execuției',
+    exec: [
+      'deșeurile rezultate (ambalaje, resturi de cabluri, materiale metalice) se colectează selectiv și se predau operatorilor economici autorizați, conform Legii 211/2011 privind regimul deșeurilor;',
+      'se interzice depozitarea necontrolată a materialelor și deversarea de substanțe pe sol;',
+      'organizarea de șantier se menține curată, cu limitarea prafului și a zgomotului la valorile admise.',
+    ],
+    sDeee: 'La sfârșitul duratei de viață',
+    deee: [
+      'modulele fotovoltaice și invertoarele intră sub incidența reglementărilor privind deșeurile de echipamente electrice și electronice (DEEE) - OUG 5/2015, cu obligația predării către sisteme de colectare autorizate;',
+      'producătorii de module și invertoare au obligația preluării echipamentelor la finalul duratei de viață, în vederea reciclării;',
+      'acumulatorii, dacă sunt prevăzuți, se predau separat conform reglementărilor privind bateriile și acumulatorii.',
+    ],
+    note: 'Se respectă prevederile OUG 195/2005 privind protecția mediului, cu modificările și completările ulterioare.',
+  },
+
   teste: {
     title: 'TESTE, VERIFICĂRI, MĂSURĂRI ȘI PIF',
     intro: 'Înainte de punerea în funcțiune se efectuează cel puțin următoarele verificări și măsurători (PE 116/94, SR HD 60364-6):',

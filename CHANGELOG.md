@@ -5,6 +5,71 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.11] - Planșa IE004 (TE-CC board) + protecția muncii/mediu chapters + DC section picker
+
+- **Two new PT chapters, closing course pts 21 + 22** - both were entirely absent (zero occurrences of
+  PSI / protecția muncii / protecția mediului anywhere in the document):
+  - **MĂSURI DE PROTECȚIA MUNCII ȘI PSI** - legal framework (L319/2006, HG1425/2006, HG1146/2006,
+    HG1048/2006, HG1091/2006, L307/2006, P118, I7/2011), then the risks that are SPECIFIC to PV and are
+    routinely missed: DC parts are permanently live and cannot be de-energised by disconnection; a DC arc
+    has no zero crossing and does not self-extinguish (so connectors must never be pulled under load);
+    work at height; module handling as a sail; isolation + lock-off. Fire section: powder/CO₂ only, never
+    water on live parts, DC-source labelling at the board and inverter, PV presence signposted for
+    emergency responders.
+  - **MĂSURI PENTRU PROTECȚIA MEDIULUI** - operation (no emissions/effluent/waste, negligible noise),
+    execution (selective waste collection per L211/2011), end of life (modules and inverters under the
+    WEEE regime, OUG 5/2015, manufacturer take-back; batteries handled separately), closing on
+    OUG 195/2005. The intro substitutes the project's own estimated CO₂ saving.
+  - Both are NORMATIVE text, deliberately rendered UNCONDITIONALLY (a PT always needs them), unlike the
+    computed Protecții / Analiză economică chapters which appear only when their step has data - so
+    chapter numbering adapts correctly either way. Verified RO + EN, no unresolved placeholders.
+  - **Not added: the Gantt / execution schedule** (the remaining part of course pt. 20) - per request.
+    Note pt. 20 is otherwise already covered: PIF verifications in the *Teste* chapter and the
+    installation stages in *Faze determinante*.
+
+- **Conexiuni: manual DC cable section picker** next to "Secțiune recomandată" - a per-string dropdown
+  (2,5 / 4 / 6 / 10 mm²) for the cable actually being installed. The recommendation stays visible; the
+  CHOSEN section drives R, ΔU and ΔP, and a pick below the recommendation flags the card as a warning
+  instead of being silently accepted. Persisted as `connections.sections = {stringId: mm²}`, and the
+  stored loss/section data now carries the chosen value, so the parts list and the PT quote the real
+  cable. (The existing "Pierdere tensiune max. DC (%)" input also moves the computed section, but it is
+  a single GLOBAL design criterion - it cannot differ per string, and steering it to back into a desired
+  section misstates the criterion actually designed to.)
+  Verified: choosing 2,5 mm² on a 25 m string → R 0.179 Ω, ΔP 63.0 W (vs 39.4 W at the recommended
+  4 mm²), warning shown, value persisted.
+- **Section range extended to the full industry series**: the picker now offers
+  1,5 / 2,5 / 4 / 6 / 10 / 16 / 25 / 35 / 50 / 70 / 95 / 120 / 150 / 185 / 240 mm², and `STD_CROSS`
+  (auto sizing) reaches 240 mm² instead of stopping at 50.
+  - `AMP_DC` was extended to match, so the ampacity check stays meaningful across the whole range
+    instead of silently degrading above 25 mm². **The existing 2,5-25 mm² entries are UNCHANGED**, so no
+    current design shifts; 1,5 and 35-240 mm² continue the same conservative series. These remain
+    APPROXIMATE reference values (as the table already was) - grouping, ambient temperature and laying
+    method move them substantially, so they must be checked against the cable datasheet and the real
+    installation method before a design is issued.
+  - ⚠ `STD_CROSS` deliberately still STARTS at 2,5: it feeds the AUTO sizing, and adding 1,5 there would
+    have let AC circuits auto-select 1,5 mm² where they previously floored at 2,5 (the DC path floors at
+    4 mm² regardless). 1,5 mm² stays available only as a MANUAL pick, where an under-sized choice is
+    flagged.
+
+- **Planșa IE004: TE-CC combiner-board drawing (new shared PanelSVG engine).**
+- **New shared engine `js/panel-svg.js` (`window.PanelSVG`)** — a device-layout drawing of the DC
+  combiner board TE-CC, on the SAME cartouche zone-grid as the single-line schematic (same 1480×940
+  geometry, 0-9 column ruler, A-H rows, faint cell grid, data-bound title block). Third member of the
+  shared-drawing family alongside `schema-svg.js` and `mounting-svg.js`.
+- **DATA-BOUND, one row per PV string** — `PanelSVG.buildDC()` reads `Project.section('strings')` for the
+  row count/labels and `protections.dc` (persisted by the Protecții step) for each string's gPV fuse rating
+  and SPD Uc. Each row draws a 2-pole switch-disconnector **Q** (SB216PV diagonal poles: pins 1/3 on top,
+  4/2 on bottom - `+` enters pin 1 and exits pin 2, `−` enters pin 3 and exits pin 4, with the downstream
+  crossover shown), a per-pole gPV fuse pair **F**, and a 3-terminal Type-2 surge arrester **SPD** (shunt:
+  `+`/`−` in, `PE` out to an IEC earth symbol). Uniform terminal pads; red `+` / black `−` / green PE.
+- **Fills the empty Planșa IE004** (`Schemă monofilară TE-CC`) in the Proiect Tehnic - a bare rotated
+  landscape plate carrying its own cartouche (title cell stamped "Planșa IE004"), emitted in borderou
+  order next to IE002. Falls back to the "se anexează" placeholder + a pre-flight entry when there are no
+  strings. The document now DRAWS three plates (IE002 / IE004 / IE005); IE001 + IE003 remain placeholders.
+- **Live preview on the Conexiuni step** (`Connections.jsx`) - a "Tablou de curent continuu (TE-CC)" card
+  renders the same drawing from the same persisted data, so the board and the PT plate can never disagree.
+  Labels `cx.panel_dc`/`cx.panel_none` (RO/EN).
+
 ## [1.2.10] - PT: Protecții + Analiză economică chapters, conductor power losses
 
 - **Protecții step now persists what it selects** (`protections.dc` = per string

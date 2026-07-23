@@ -106,7 +106,7 @@ const Project = (function () {
                      stringVocCold: null, valid: null },
       connections: { cables: {}, dropDC: null, phases: null, matAC: null, // step 9 - electrical connections
                      lenAC: null, dropAC: null,                           // cables = { stringId: one-way m }
-                     ac: [], losses: {} },                                            // COMPUTED per inverter: [{pac,iac,section,mcb,drop}] -
+                     sections: {}, ac: [], losses: {} },                                            // COMPUTED per inverter: [{pac,iac,section,mcb,drop}] -
                                                                           // persisted by Connections.jsx so the PT (cap. "Soluția de
                                                                           // racordare") + parts list quote them without re-deriving
       protections: { net: null, iccKA: null, distDC: null, distAC: null, // step 10 - switchgear/protection design inputs

@@ -228,6 +228,54 @@ window.PT_TEXT_EN = {
     note: 'The values above follow from the data entered in the economic analysis step (prices, cost, horizon, rate). As the inverter service life is about 10 years, its cost is counted twice for longer analysis horizons.',
   },
 
+  psi: {
+    title: 'OCCUPATIONAL SAFETY AND FIRE PROTECTION MEASURES',
+    intro: 'Execution, commissioning, operation and maintenance of the PV plant comply with occupational safety and fire protection legislation. Work is carried out only by qualified and authorised personnel, trained for the risks specific to photovoltaic installations.',
+    sLegal: 'Legal framework',
+    legal: null,
+    sRisc: 'Risks specific to photovoltaic installations and associated measures',
+    risc: [
+      'PERMANENT DC ELECTRICAL HAZARD: PV modules generate voltage whenever they are illuminated and CANNOT be de-energised by disconnection. DC circuits are treated as permanently live; work is carried out with the DC load-break switch open, with the modules covered or at night, using 1000 V insulated tools and insulating personal protective equipment.',
+      'DC ARC: a DC arc has no natural zero crossing and does not self-extinguish. Breaking DC circuits under load by unplugging connectors is forbidden; switching is performed exclusively with the switchgear provided in the design.',
+      'WORK AT HEIGHT: roof installation is carried out with fall-arrest systems (full harness, verified anchor points, lifelines), compliant scaffolding or platforms, and is prohibited in strong wind, precipitation or on slippery surfaces.',
+      'HANDLING: modules have a large surface and act as a sail in wind; they are handled by at least two people wearing protective gloves.',
+      'SWITCHING: before any intervention the absence of voltage is verified, visible isolation is established and the equipment is locked against accidental re-energisation, with prohibition signs fitted.',
+    ],
+    sPsi: 'Fire prevention and firefighting measures',
+    psi: [
+      'any fire in the area of the electrical installation is extinguished ONLY with powder or carbon dioxide extinguishers; the use of water on live installations is forbidden;',
+      'the connection board and the inverter are visibly labelled with a warning about the presence of a DC voltage source, which remains live even after grid disconnection;',
+      'the presence of the PV plant is signposted at the main board and the metering block, to inform emergency response teams;',
+      'free access is ensured to the isolating equipment and to the escape routes;',
+      'the clearances and siting conditions relative to combustible building elements are observed.',
+    ],
+  },
+
+  mediu: {
+    title: 'ENVIRONMENTAL PROTECTION MEASURES',
+    intro: 'The investment has a positive environmental impact: energy generated from a renewable source replaces energy drawn from the grid, reducing greenhouse-gas emissions by approximately {co2} kg CO₂ per year. The measures below apply during execution and operation.',
+    sExpl: 'During operation',
+    expl: [
+      'the installation produces no atmospheric emissions, process waste water or waste during operation;',
+      'no hazardous substances are used in the energy generation process;',
+      'the noise level is negligible, produced solely by inverter ventilation;',
+      'the water regime is unaffected and the soil is not disturbed, the installation being mounted on the existing structure.',
+    ],
+    sExec: 'During execution',
+    exec: [
+      'the resulting waste (packaging, cable offcuts, metal materials) is collected selectively and handed over to authorised operators, per Law 211/2011 on the waste regime;',
+      'uncontrolled storage of materials and the discharge of substances onto the soil are forbidden;',
+      'the site is kept clean, with dust and noise limited to permitted values.',
+    ],
+    sDeee: 'At end of service life',
+    deee: [
+      'PV modules and inverters fall under the waste electrical and electronic equipment (WEEE) regulations - GEO 5/2015 - and must be handed over to authorised collection schemes;',
+      'module and inverter manufacturers are obliged to take back the equipment at end of life for recycling;',
+      'batteries, where provided, are handed over separately per the regulations on batteries and accumulators.',
+    ],
+    note: 'The provisions of GEO 195/2005 on environmental protection, as subsequently amended, are observed.',
+  },
+
   teste: {
     title: 'TESTS, VERIFICATIONS, MEASUREMENTS AND COMMISSIONING',
     intro: 'Before commissioning, at least the following checks and measurements are performed (PE 116/94, SR HD 60364-6):',

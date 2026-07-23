@@ -709,6 +709,35 @@ var PTDoc = (function () {
       ec.blocks.push(p('<i>' + esc(txt('economic.note')) + '</i>'));
     }
 
+    /* 12 — protecția muncii + PSI (course pt. 21). Normative content: the risks are
+       inherent to every PV installation (permanent DC live parts, non-self-extinguishing
+       DC arc, work at height), so the text is standard rather than project-derived. */
+    num++;
+    var pm = chap('psi', { num: num, title: txt('psi.title'), pageBreak: true });
+    pm.blocks.push(h2(num + ' ' + esc(txt('psi.title'))));
+    pm.blocks.push(p(esc(txt('psi.intro'))));
+    var pmn = 0;
+    pmn++; pm.blocks.push(h3(num + '.' + pmn + ' ' + esc(txt('psi.sLegal'))));
+    pm.blocks.push(ul(txt('psi.legal').map(esc)));
+    pmn++; pm.blocks.push(h3(num + '.' + pmn + ' ' + esc(txt('psi.sRisc'))));
+    pm.blocks.push(ul(txt('psi.risc').map(esc)));
+    pmn++; pm.blocks.push(h3(num + '.' + pmn + ' ' + esc(txt('psi.sPsi'))));
+    pm.blocks.push(ul(txt('psi.psi').map(esc)));
+
+    /* 13 — protecția mediului (course pt. 22) */
+    num++;
+    var mz = chap('mediu', { num: num, title: txt('mediu.title'), pageBreak: true });
+    mz.blocks.push(h2(num + ' ' + esc(txt('mediu.title'))));
+    mz.blocks.push(p(S(txt('mediu.intro'), 'mediu')));
+    var mzn = 0;
+    mzn++; mz.blocks.push(h3(num + '.' + mzn + ' ' + esc(txt('mediu.sExpl'))));
+    mz.blocks.push(ul(txt('mediu.expl').map(esc)));
+    mzn++; mz.blocks.push(h3(num + '.' + mzn + ' ' + esc(txt('mediu.sExec'))));
+    mz.blocks.push(ul(txt('mediu.exec').map(esc)));
+    mzn++; mz.blocks.push(h3(num + '.' + mzn + ' ' + esc(txt('mediu.sDeee'))));
+    mz.blocks.push(ul(txt('mediu.deee').map(esc)));
+    mz.blocks.push(p('<i>' + esc(txt('mediu.note')) + '</i>'));
+
     /* Anexa 1 — graphs carried over from the retired client PDF */
     var ax = chap('anexa1', { pageBreak: true, sectionMark: 'anexa1', tocTitle: txt('anexa1.title') });
     ax.blocks.push(h2(esc(txt('anexa1.title'))));
@@ -873,6 +902,7 @@ var PTDoc = (function () {
          · IE005 — the two to-scale mounting views (MountingSVG), inside the normal plate frame.
        Both fall back to the placeholder + a pre-flight entry when their step has no data yet. */
     var sres = (typeof SchemaSVG !== 'undefined') ? SchemaSVG.build({ nodeIds: false, learn: false, plateNo: 'IE002' }) : null;
+    var pres = (typeof PanelSVG !== 'undefined') ? PanelSVG.buildDC({ plateNo: 'IE004' }) : null;   // DC combiner board
     var mres = C.mgeo;   // built once in collect() (also feeds 6.1's occupied-area figure)
     txt('borderou.planse').forEach(function (pl) {
       /* IE002 — bare landscape plate, the schematic supplies its own cartouche */
@@ -882,6 +912,16 @@ var PTDoc = (function () {
         else {
           _missing.push({ chapter: 'planse', field: 'schemaMonofilara' });
           plChap.blocks.push({ plate: { missing: txt('planse.schemaMissing') } });
+        }
+        return;
+      }
+      /* IE004 — TE-CC combiner board layout, bare landscape plate (own cartouche) */
+      if (pl[1] === 'IE004' && pres) {
+        plChap.blocks.push({ pageBreak: true, bare: true });
+        if (pres.hasData) { plChap.blocks.push({ plate: { svg: pres.svg } }); }
+        else {
+          _missing.push({ chapter: 'planse', field: 'tabloulTECC' });
+          plChap.blocks.push({ plate: { missing: txt('planse.seAnexeaza') } });
         }
         return;
       }

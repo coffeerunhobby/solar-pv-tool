@@ -27,12 +27,23 @@ const DEFAULT_GMIN  = 100;    // W/m² cold-morning irradiance
 const DEFAULT_GMAX  = 1000;   // W/m² peak irradiance
 const DEFAULT_NMOT  = 45;     // °C NMOT fallback when the module lacks it
 
-const STD_CROSS  = [2.5, 4, 6, 10, 16, 25, 35, 50];
+/* ⚠ deliberately starts at 2.5: this list feeds the AUTO sizing (DC floors at 4 mm²,
+   AC at 1.5) - adding 1.5 here would let AC circuits auto-select 1.5 mm² where they
+   previously floored at 2.5. 1.5 remains available as a MANUAL pick in DC_PICK, where
+   an under-sized choice is flagged. */
+const STD_CROSS  = [2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240];
 const STD_FUSE   = [6, 8, 10, 12, 15, 16, 20, 25, 32];
 const STD_MCB    = [6, 10, 16, 20, 25, 32, 40, 50, 63];
 
-/* H1Z2Z2-K single cable, free air (approx IEC 60364-5-52 method B) */
-const AMP_DC = { 2.5: 35, 4: 45, 6: 57, 10: 75, 16: 100, 25: 130 };
+/* H1Z2Z2-K single cable, free air (approx IEC 60364-5-52 method B).
+   ⚠ APPROXIMATE reference values, as the original table already was: the 2.5-25 mm²
+   entries are UNCHANGED (no behaviour change for existing designs); 1.5 and 35-240 mm²
+   continue the same conservative series so the ampacity check stays meaningful across
+   the full picker range. Verify against the actual cable's datasheet and the real
+   installation method before issuing a design - grouping, ambient temperature and
+   laying method can move these substantially. */
+const AMP_DC = { 1.5: 26, 2.5: 35, 4: 45, 6: 57, 10: 75, 16: 100, 25: 130,
+                 35: 160, 50: 195, 70: 245, 95: 295, 120: 340, 150: 390, 185: 445, 240: 525 };
 
 /* NYY/CYY copper AC (method B2, typical) */
 const AMP_AC_CU = { 1.5: 15.5, 2.5: 21, 4: 28, 6: 36, 10: 50, 16: 68, 25: 89 };
@@ -40,6 +51,10 @@ const AMP_AC_CU = { 1.5: 15.5, 2.5: 21, 4: 28, 6: 36, 10: 50, 16: 68, 25: 89 };
 const AMP_AC_AL = { 2.5: 16, 4: 21, 6: 28, 10: 40, 16: 55, 25: 73 };
 
 const CABLE_LEN_DEFAULT = 20;   /* one-way string cable length default (m) */
+/* DC sections the engineer may pick by hand (what's actually on the shelf). The
+   recommendation stays visible; the CHOSEN one drives R, ΔU and ΔP so an under-sized
+   pick shows up as a failed check rather than being silently ignored. */
+const DC_PICK = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240];
 
 /* ── Helpers (verbatim) ────────────────────────────────────────────────── */
 function nextStd(arr, minVal) {
@@ -130,7 +145,7 @@ function stringG(s, Gmin, Gmax, cache) {
 
 /* ── Per-string DC cards (verbatim HTML builder from legacy renderStrings;
    seeding/persist moved to the component, Explain gated on learnOn) ─────── */
-function buildStringsHtml(strings, cables, dropDC, TaMin, TaMax, Gmin, Gmax, gCache, learnOn, sizedOut) {
+function buildStringsHtml(strings, cables, dropDC, TaMin, TaMax, Gmin, Gmax, gCache, learnOn, sizedOut, sections) {
   if (!strings.length) {
     return '<div class="card"><span class="no-data">' + tr('cx.nostrings') + '</span></div>';
   }
@@ -182,14 +197,18 @@ function buildStringsHtml(strings, cables, dropDC, TaMin, TaMax, Gmin, Gmax, gCa
     var S_min   = Math.max(S_vd, S_amp, 4);
     var S_final = nextStd(STD_CROSS, S_min);
     /* Verify with the chosen section, exactly as the course does it: (16) then (15) */
-    var R_C     = RHO_CU * lenM / S_final;                  // (16)
+    /* manual section override (see DC_PICK): everything downstream uses S_used */
+    var S_pick  = (sections && sections[s.id] != null) ? +sections[s.id] : null;
+    var S_used  = S_pick || S_final;
+    var underSz = S_used < S_final;
+    var R_C     = RHO_CU * lenM / S_used;                   // (16)
     var dropAct = 2 * R_C * impStr / vmpS * 100;            // (15)
     /* conductor power loss, course rel. (21): ΔP_cc = 2·R_C·I²mp-STC. Collected into
        `sizedOut` so the page can PERSIST it (the PT quotes the losses + the resulting
        efficiency; nothing re-derives them). */
     var dP_dc = 2 * R_C * impStr * impStr;
     if (sizedOut) sizedOut.push({ id: s.id != null ? s.id : idx, label: 'S' + (idx + 1),
-      len: lenM, section: S_final, R_C: R_C, imp: impStr, drop: dropAct,
+      len: lenM, section: S_used, sectionRec: S_final, R_C: R_C, imp: impStr, drop: dropAct,
       dP: dP_dc, pdc: (mod.pmax || 0) * (s.count || 0) });
 
     /* Fuse sizing (IEC 62548 / course formula) */
@@ -236,6 +255,16 @@ function buildStringsHtml(strings, cables, dropDC, TaMin, TaMax, Gmin, Gmax, gCa
     html += '<div class="metric-lbl">' + tr('cx.section') + '</div>';
     html += '<div class="metric-sub">S<sub>VD</sub>=' + f2(S_vd) + ' · S<sub>amp</sub>=' + S_amp + ' mm²' +
             (kT < 1 ? ' · k<sub>T</sub>=' + fnum(kT) + ' @T<sub>c,max</sub> ' + f1(tcMax) + '°C' : '') + '</div>';
+    html += '</div>';
+
+    /* chosen section (manual pick) */
+    html += '<div class="metric' + (underSz ? ' warn' : '') + '">';
+    html += '<select class="cx-sec-pick" data-sid="' + s.id + '">' +
+            DC_PICK.map(function (v) {
+              return '<option value="' + v + '"' + (v === S_used ? ' selected' : '') + '>' + v + ' mm\u00b2</option>';
+            }).join('') + '</select>';
+    html += '<div class="metric-lbl">' + tr('cx.section_pick') + '</div>';
+    html += '<div class="metric-sub">' + (underSz ? tr('cx.section_under') : tr('cx.section_ok')) + '</div>';
     html += '</div>';
 
     var dropClass = dropAct > dropDC + 0.01 ? ' warn' : '';
@@ -455,6 +484,7 @@ export default function Connections() {
   /* init once from state (page remounts on project identity change) */
   const cx0 = Project.section('connections') || {};
   const seededRef = useRef(false);
+  const [sections, setSections] = useState(() => ({ ...((Project.section('connections') || {}).sections || {}) }));
   const [cables, setCables] = useState(() => {
     /* Normalise to a plain { stringId: oneWayLengthM } object. Legacy/empty state
        was persisted as [] (array) or could carry holes; coerce so lookups + JSON
@@ -496,8 +526,9 @@ export default function Connections() {
       matAC,
       lenAC: +lenAC,
       dropAC: +dropAC,
+      sections: { ...sections },
     });
-  }, [JSON.stringify(cables), dropDC, phases, matAC, lenAC, dropAC]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(cables), JSON.stringify(sections), dropDC, phases, matAC, lenAC, dropAC]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Persist the COMPUTED AC sizing (section + MCB per inverter) — same idea as the mounting
      step saving its derived pitch/rows, so the Proiect Tehnic ("Soluția propusă pentru
@@ -531,7 +562,7 @@ export default function Connections() {
       Project.patch('connections', { ac, losses });
     }
   }, [JSON.stringify(comp.inverters), comp.inverterId, comp.pacInv, phases, matAC, lenAC, dropAC,
-      JSON.stringify(strings), JSON.stringify(cables), dropDC]);  // eslint-disable-line react-hooks/exhaustive-deps
+      JSON.stringify(strings), JSON.stringify(cables), JSON.stringify(sections), dropDC]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Done once there is at least one sized string to cable (legacy trigger). */
   useEffect(() => {
@@ -542,12 +573,18 @@ export default function Connections() {
   const gCache = useRef({}).current;
 
   const dcSized = [];
-  const stringsHtml = buildStringsHtml(strings, cables, +dropDC || 1.5, TaMin, TaMax, Gmin, Gmax, gCache, learnOn, dcSized);
+  const stringsHtml = buildStringsHtml(strings, cables, +dropDC || 1.5, TaMin, TaMax, Gmin, Gmax, gCache, learnOn, dcSized, sections);
   const genHtml     = buildGenHtml(strings);
   const acHtml      = buildAcHtml(comp, +phases, matAC, +lenAC || 10, +dropAC || 1.0, learnOn);
+  /* TE-CC panel drawing (shared PanelSVG global). Depends on strings + the persisted
+     protections.dc, so it re-renders whenever either changes (both are reactive deps). */
+  const panelSvg    = (typeof PanelSVG !== 'undefined' && strings.length)
+    ? PanelSVG.buildDC({}).svg : '';   // eslint-disable-line no-undef
 
   /* delegated handler for the injected per-string cable-length inputs */
   function onCableInput(e) {
+    const sel = e.target.closest ? e.target.closest('.cx-sec-pick') : null;
+    if (sel) { setSections({ ...sections, [sel.dataset.sid]: +sel.value }); return; }
     const inp = e.target.closest ? e.target.closest('.cx-cable-len') : null;
     if (!inp) return;
     setCables({ ...cables, [inp.dataset.sid]: +inp.value });
@@ -566,7 +603,7 @@ export default function Connections() {
           {/* Left: per-string DC cards + shared DC settings */}
           <div className="col-lg-7">
 
-            <div id="cx-strings" onInput={onCableInput}
+            <div id="cx-strings" onInput={onCableInput} onChange={onCableInput}
                  dangerouslySetInnerHTML={{ __html: stringsHtml }} />
 
             <div className="card">
@@ -633,6 +670,16 @@ export default function Connections() {
           <AccItem title={t('nav.disconnect')} html={t('cx.acc_disconnect')} />
           <AccItem title={t('nav.metering')}   html={t('cx.acc_metering')} />
           <AccItem title={t('nav.gridconn')}   html={t('cx.acc_grid')} />
+        </div>
+
+        {/* TE-CC combiner-board panel drawing (shared PanelSVG → also the PT plate IE004).
+            Rebuilds from the same persisted data (strings + protections.dc) the AC/DC
+            cards use; the width scales the fixed 1480×940 plate to the card. */}
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="sec">{t('cx.panel_dc')}</div>
+          {panelSvg
+            ? <div style={{ overflowX: 'auto' }} dangerouslySetInnerHTML={{ __html: panelSvg }} />
+            : <p className="no-data" style={{ margin: '6px 0' }}>{t('cx.panel_none')}</p>}
         </div>
       </div>
     </>
