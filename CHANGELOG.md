@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.7] - Proiect Tehnic: new "Lista de cantități" chapter (bill of quantities)
+
+- The PT document now generates a **Lista de cantități** chapter (parts list / BoQ) — cap. 9, right after
+  the *Faze determinante* chapter. Quantities are **auto-derived from the project**: panels (Σ string
+  counts), inverter(s), mounting structure, DC solar cable per polarity (Σ one-way runs from
+  `connections.cables` × 1.10 slack), AC cable (`connections.lenAC` × 1.10), MC4 connector pairs
+  (2×strings + spares), earthing kit, and the switchboard gear (string gPV fuses for parallel strings,
+  DC/AC SPD type 2, DC disconnect, per-inverter MCB, RCD). Grouped into 4 sections (echipamente / instalații
+  electrice / echipare tablouri / lucrări civile); the civil-works section is left for manual entry.
+- Bilingual (RO/EN) via new `boq.*` keys in `js/pt-text-ro.js` / `js/pt-text-en.js`; rendered by a new
+  `chap('boq')` block in `js/pt-doc.js` (reads `Project.get()` for strings/components/connections).
+- **Manual rows editor** in the PT form column (`BoqEditor` in `app/src/pages/Pt.jsx`): add / edit / delete
+  your own line items (description, unit, qty, section), persisted at `Project.section('boq').rows`
+  (`[{cap,um,cant,sec}]`, new state section) and merged into the matching document section — this is how
+  the *Lucrări civile* section fills. Debounced live rebuild; `pt.boq*` UI labels in `js/i18n_ro.js` /
+  `js/i18n_en.js`.
+- First of the three remaining PT feeder chapters (parts list → permits → install plan). Verified via
+  Playwright against a 2-string seeded project (36 panels, 48 m/pole DC, 14 m AC, 2 fuses; 22 pages) and
+  by adding manual civil rows through the editor (persist + document merge confirmed).
+
 ## [1.2.6] - Fix: Proiect Tehnic (PT) page would not scroll
 
 - The PT document page could not be scrolled on screen (desktop) - the whole document was stuck at the

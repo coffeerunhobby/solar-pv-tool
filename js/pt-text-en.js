@@ -191,6 +191,34 @@ window.PT_TEXT_EN = {
     note: 'Control dates are agreed between the beneficiary and the contractor and communicated in due time to the designer for the phases where their presence is mandatory.',
   },
 
+  boq: {
+    title: 'BILL OF QUANTITIES',
+    intro: 'The quantities below are estimated automatically from the project configuration (modules, inverters, cabling). They are an indicative list of materials and equipment; the designer verifies and completes them with civil works and minor materials according to the on-site situation.',
+    cols: ['No.', 'Product / work description', 'Unit', 'Qty'],
+    sec: {
+      echip: 'Main equipment',
+      elec: 'Electrical installations and cabling',
+      tabl: 'Switchboard equipping and protections',
+      civ: 'Civil works and miscellaneous',
+    },
+    it: {
+      struct: 'Mounting structure (rails, end/mid clamps, fixings)',
+      dcRed: 'Solar DC cable H1Z2Z2-K (red, +)',
+      dcBlack: 'Solar DC cable H1Z2Z2-K (black, -)',
+      ac: 'AC supply cable',
+      mc4: 'MC4 PV connectors (pairs + spares)',
+      ground: 'Earthing electrode + OlZn 40x4 strip + accessories',
+      fuse: 'gPV string fuse',
+      spdDC: 'DC surge protective device (SPD) type 2',
+      discDC: 'DC load-break switch-disconnector',
+      mcb: 'AC circuit breaker (MCB)',
+      rcd: 'Residual-current device (RCD/RCCB)',
+      spdAC: 'AC surge protective device (SPD) type 2',
+    },
+    manualNote: '(to be filled in manually by the designer / bidder)',
+    foot: 'Note: cable quantities include a 10% allowance for slack and routing. Fuse and breaker ratings are taken from the protections chapter.',
+  },
+
   anexa1: {
     title: 'ANNEX 1 - PV PLANT CALCULATION REPORT (ESTIMATED YIELD)',
     introModel: 'The CEF energy yield was estimated with the in-house calculation tool (documented models: Hofierka/Suri 2002 clear-sky, PVGIS-native anisotropic transposition, thermal derating on the Huld 2010 efficiency surface, Martin-Ruiz angular losses; accuracy documented against PVGIS). Where available, the comparison against official per-string PVGIS (SARAH) data is also presented.',

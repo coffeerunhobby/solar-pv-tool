@@ -454,6 +454,73 @@ var PTDoc = (function () {
     }), widths: ['7%', '63%', '14%', '16%'] } });
     fz.blocks.push(p('<i>' + esc(txt('faze.note')) + '</i>'));
 
+    /* 9 — Lista de cantități (bill of quantities / parts list). Quantities are AUTO-DERIVED from the
+       project (strings + components + connections) — the engineer refines them; the civil-works section
+       is left for manual entry. Grouped into 4 sections per PT-SPEC §4/§5.3. */
+    num++;
+    var boqC = chap('boq', { num: num, title: txt('boq.title'), pageBreak: true });
+    boqC.blocks.push(h2(num + ' ' + esc(txt('boq.title'))));
+    boqC.blocks.push(p(esc(txt('boq.intro'))));
+    (function () {
+      var stB = (typeof Project !== 'undefined' && Project.get) ? Project.get() : {};
+      var strs = Array.isArray(stB.strings) ? stB.strings : [];
+      var cmp = stB.components || {}, cn = stB.connections || {};
+      var IT = function (k) { return txt('boq.it.' + k); };
+      var SLK = 0.10;                          // 10% cable slack allowance
+      var echip = [], elec = [], tabl = [], civ = [];
+      var nStr = strs.length;
+
+      /* — equipment (montaj echipamente): panels, inverters, mounting structure — */
+      var byMod = {};
+      strs.forEach(function (s) { if (s.moduleId) byMod[s.moduleId] = (byMod[s.moduleId] || 0) + (s.count || 0); });
+      Object.keys(byMod).forEach(function (id) { var m = modById(id); echip.push([(m ? m.name : id), 'buc', byMod[id]]); });
+      var invU = (Array.isArray(cmp.inverters) && cmp.inverters.length) ? cmp.inverters
+               : (cmp.inverterId ? [{ inverterId: cmp.inverterId }] : []);
+      var byInv = {};
+      invU.forEach(function (u) { if (u.inverterId) byInv[u.inverterId] = (byInv[u.inverterId] || 0) + 1; });
+      Object.keys(byInv).forEach(function (id) { var iv = invById(id); echip.push([(iv ? iv.name : id), 'buc', byInv[id]]); });
+      var nInv = Object.keys(byInv).reduce(function (a, k) { return a + byInv[k]; }, 0) || (nStr ? 1 : 0);
+      if (nStr) echip.push([IT('struct'), 'set', 1]);
+
+      /* — electrical (instalații electrice): DC/AC cable, MC4, grounding — */
+      var dc1 = 0;
+      strs.forEach(function (s) { var L = cn.cables && cn.cables[s.id]; if (typeof L === 'number') dc1 += L; });
+      if (dc1 > 0) {
+        var perPole = Math.ceil(dc1 * (1 + SLK));         // one-way × slack, per polarity
+        elec.push([IT('dcRed'), 'm', perPole]);
+        elec.push([IT('dcBlack'), 'm', perPole]);
+      }
+      if (typeof cn.lenAC === 'number' && cn.lenAC > 0) elec.push([IT('ac') + (cn.matAC ? ' (' + cn.matAC + ')' : ''), 'm', Math.ceil(cn.lenAC * (1 + SLK))]);
+      if (nStr) elec.push([IT('mc4'), 'buc', 2 * nStr + Math.max(2, Math.ceil(nStr * 0.1))]);
+      if (nStr) elec.push([IT('ground'), 'set', 1]);
+
+      /* — switchboard equipping (echipare tablouri): fuses, SPDs, disconnect, MCB, RCD — */
+      var nFused = strs.filter(function (s) { return (s.np || 1) > 1; }).length;
+      if (nFused) tabl.push([IT('fuse'), 'buc', 2 * nFused]);
+      if (nStr) { tabl.push([IT('spdDC'), 'buc', 1]); tabl.push([IT('discDC'), 'buc', 1]); }
+      if (nInv) tabl.push([IT('mcb'), 'buc', nInv]);
+      if (nStr) { tabl.push([IT('rcd'), 'buc', 1]); tabl.push([IT('spdAC'), 'buc', 1]); }
+
+      /* manual rows the engineer added in the PT form (Project.section('boq').rows),
+         appended into their chosen section — this is how the civil-works section fills. */
+      var manual = (stB.boq && Array.isArray(stB.boq.rows)) ? stB.boq.rows : [];
+
+      /* render the four sections; each = auto-derived rows + the user's manual rows for that section */
+      [['echip', echip], ['elec', elec], ['tabl', tabl], ['civ', civ]].forEach(function (sec) {
+        var rows = sec[1].slice();
+        manual.forEach(function (r) {
+          if (r && r.sec === sec[0] && (r.cap || (r.cant != null && r.cant !== ''))) rows.push([r.cap || '-', r.um || '-', (r.cant != null && r.cant !== '') ? r.cant : '-']);
+        });
+        boqC.blocks.push(h3(esc(txt('boq.sec.' + sec[0]))));
+        if (rows.length) boqC.blocks.push({ table: { head: txt('boq.cols').map(esc),
+          rows: rows.map(function (r, i) { return [String(i + 1), esc(r[0]), esc(r[1]), esc(String(r[2]))]; }),
+          widths: ['7%', '61%', '14%', '18%'] } });
+        else boqC.blocks.push(p('<i>' + esc(txt('boq.manualNote')) + '</i>'));
+      });
+      boqC.blocks.push(p('<i>' + esc(txt('boq.foot')) + '</i>'));
+      if (!nStr) _missing.push({ chapter: 'boq', field: 'strings' });
+    })();
+
     /* Anexa 1 — graphs carried over from the retired client PDF */
     var ax = chap('anexa1', { pageBreak: true, sectionMark: 'anexa1', tocTitle: txt('anexa1.title') });
     ax.blocks.push(h2(esc(txt('anexa1.title'))));

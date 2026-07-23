@@ -222,6 +222,34 @@ window.PT_TEXT_RO = {
     note: 'Termenele controalelor se stabilesc de comun acord între beneficiar și executant și se comunică în timp util proiectantului pentru fazele la care prezența acestuia este obligatorie.',
   },
 
+  boq: {
+    title: 'LISTA DE CANTITĂȚI',
+    intro: 'Cantitățile de mai jos sunt estimate automat pe baza configurației proiectului (module, invertoare, cablaje). Ele reprezintă o listă orientativă de materiale și echipamente; proiectantul le verifică și le completează cu lucrările civile și cu materialele mărunte, în funcție de situația din teren.',
+    cols: ['Nr.', 'Denumire produs / lucrare', 'U.M.', 'Cant.'],
+    sec: {
+      echip: 'Echipamente principale',
+      elec: 'Instalații electrice și cablaje',
+      tabl: 'Echipare tablouri și protecții',
+      civ: 'Lucrări civile și diverse',
+    },
+    it: {
+      struct: 'Structură de montaj (șine, cleme de capăt/mijloc, prinderi)',
+      dcRed: 'Cablu solar c.c. H1Z2Z2-K (roșu, +)',
+      dcBlack: 'Cablu solar c.c. H1Z2Z2-K (negru, -)',
+      ac: 'Cablu de alimentare c.a.',
+      mc4: 'Conectori fotovoltaici tip MC4 (perechi + rezerve)',
+      ground: 'Priză de pământ - electrozi + platbandă OlZn 40x4 + accesorii',
+      fuse: 'Siguranță fuzibilă gPV pentru string',
+      spdDC: 'Descărcător de supratensiuni c.c. (SPD) tip 2',
+      discDC: 'Separator de sarcină c.c.',
+      mcb: 'Disjunctor c.a. (MCB)',
+      rcd: 'Protecție diferențială (RCD/RCCB)',
+      spdAC: 'Descărcător de supratensiuni c.a. (SPD) tip 2',
+    },
+    manualNote: '(se completează manual de către proiectant / ofertant)',
+    foot: 'Notă: cantitățile de cablu includ un adaos de 10% pentru rezervă și traseu. Ratingurile siguranțelor și ale disjunctoarelor se preiau din capitolul de protecții.',
+  },
+
   anexa1: {
     title: 'ANEXA 1 - BREVIAR DE CALCUL CEF (PRODUCȚIE ESTIMATĂ)',
     introModel: 'Producția de energie a CEF a fost estimată cu instrumentul propriu de calcul (modele documentate: Hofierka/Suri 2002 - cer senin, transpoziție anisotropică PVGIS-nativă, derating termic pe suprafața de eficiență Huld 2010, pierderi unghiulare Martin-Ruiz; acuratețe documentată față de PVGIS). Unde este disponibil, se prezintă și comparația cu datele oficiale PVGIS (SARAH) importate per șir.',

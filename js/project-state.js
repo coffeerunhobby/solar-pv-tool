@@ -113,6 +113,7 @@ const Project = (function () {
                      scMode: null, rac: null, dayFrac: null, battId: null,               // self-consumption model: 'rata'|'lunar'|'zinoapte'|'baterie'; Rac %; daytime-consumption %; battId = BATTERY_LIST id for the expert battery sim
                      country: null, eurPerWp: null },                                    // country = ISO2 for e1 prefill; eurPerWp = turnkey benchmark for C_FV estimate
       schema:      { layout: {} },                                       // single-line editor: { deviceId: {col,row} } cartouche-cell placement overrides
+      boq:         { rows: [] },                                          // step 12 - Lista de cantități MANUAL rows: [{cap,um,cant,sec}] (sec: 'echip'|'elec'|'tabl'|'civ'); auto rows are derived in pt-doc.js
       defectoscopy:{ moduleId: null, g: null, tc: null, points: [] },     // step 17 - I-V diagnostics; points = VERBATIM UI rows
                                                                           // ({i,v,g,t} raw strings, incl. empties + order) - G/T are PER POINT (readings
                                                                           // drift between rows); top-level g/tc are legacy (migrated into rows on load)

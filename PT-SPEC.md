@@ -143,6 +143,13 @@ adjacent info + a tracking table in the PT.
 Inputs: durată estimată, echipe, restricții acces. Renders cap. 8 + 15. Mostly template.
 
 ### 5.3 Step 12 — Deviz / Lista de cantități (deviz.html)
+> **STATUS (v1.2.7): auto-derived rows + manual rows editor are BUILT** as a PT chapter (`chap('boq')` in
+> `js/pt-doc.js`, labels in `js/pt-text-*.js` `boq.*`) — renders inside pt.html, no separate `deviz.html`.
+> The manual rows (`{cap,um,cant,sec}`) are edited by `BoqEditor` in `app/src/pages/Pt.jsx`, persisted at
+> `Project.section('boq').rows` (new state section, added to `blank()`), and merged into the matching
+> document section. **Still pending:** pulling the actual fuse/MCB **ratings** from the protections chapter
+> (the fuse row currently shows count, not rating); optional per-row unit-price → deviz totals.
+
 Auto-derived rows (source → quantity):
 - module FV ← Σ strings count; invertor ← components.inverterId (1); structură ← planes/mounting totals
 - cablu CC roșu/negru ← 2 × Σ connections.cables[stringId] (one-way m) + slack %

@@ -19,9 +19,69 @@
    would force margin:0 onto every route's printout). Chart cleanup: pt-doc.js
    keeps NO chart references (legacy leaked instances on every rebuild), so
    destroy()/rebuild best-effort Chart.getChart(canvas).destroy() over the host. */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../store/useI18n.js';
 import './Pt.css';
+
+/* Manual bill-of-quantities rows editor. The auto-derived quantities live in
+   js/pt-doc.js (panels/cables/protections from the project); THIS edits the
+   extra rows the engineer types in — persisted at Project.section('boq').rows
+   as [{cap,um,cant,sec}] and merged into the matching document section. A
+   debounced onRebuild re-runs PTDoc.build so the document reflects edits. */
+function BoqEditor({ t, onRebuild }) {
+  /* Project is a classic-script global binding (not a window property) — reference it bare,
+     the same way Strings.jsx / useProject.js do. */
+  const boq = Project.section('boq');
+  const initial = (boq && Array.isArray(boq.rows)) ? boq.rows : [];
+  const [rows, setRows] = useState(initial);
+  const timer = useRef(null);
+
+  const SECTIONS = [
+    ['civ', t('pt.boqSecCiv')], ['echip', t('pt.boqSecEchip')],
+    ['elec', t('pt.boqSecElec')], ['tabl', t('pt.boqSecTabl')],
+  ];
+
+  function commit(next) {
+    setRows(next);
+    Project.set('boq', { rows: next });
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { onRebuild && onRebuild(); }, 500);
+  }
+  const add = () => commit([...rows, { cap: '', um: 'buc', cant: '', sec: 'civ' }]);
+  const upd = (i, k, v) => commit(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const del = (i) => commit(rows.filter((_, j) => j !== i));
+
+  const inp = { width: '100%', fontSize: 12, background: 'var(--input-bg)', color: 'var(--text)',
+                border: '0.5px solid var(--border)', borderRadius: 6, padding: '4px 6px' };
+
+  return (
+    <div className="card">
+      <div className="sec">{t('pt.boqTitle')}</div>
+      <div className="pt-calc-note" style={{ marginTop: 0, marginBottom: 8 }}>{t('pt.boqHint')}</div>
+      {rows.length === 0 && (
+        <div className="pt-calc-hint" style={{ marginBottom: 8 }}>{t('pt.boqEmpty')}</div>
+      )}
+      {rows.map((r, i) => (
+        <div key={i} style={{ border: '0.5px solid var(--border)', borderRadius: 8, padding: 8, marginBottom: 8 }}>
+          <input style={{ ...inp, marginBottom: 6 }} type="text" placeholder={t('pt.boqDesc')}
+                 value={r.cap || ''} onChange={(e) => upd(i, 'cap', e.target.value)} />
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input style={{ ...inp, width: 56 }} type="text" placeholder={t('pt.boqUm')}
+                   value={r.um || ''} onChange={(e) => upd(i, 'um', e.target.value)} title={t('pt.boqUm')} />
+            <input style={{ ...inp, width: 64 }} type="text" inputMode="decimal" placeholder={t('pt.boqQty')}
+                   value={r.cant == null ? '' : r.cant} onChange={(e) => upd(i, 'cant', e.target.value)} title={t('pt.boqQty')} />
+            <select style={{ ...inp, flex: 1 }} value={r.sec || 'civ'} onChange={(e) => upd(i, 'sec', e.target.value)} title={t('pt.boqSec')}>
+              {SECTIONS.map(([v, lbl]) => <option key={v} value={v}>{lbl}</option>)}
+            </select>
+            <button type="button" className="btn btn-sm btn-outline-danger" style={{ padding: '2px 8px', lineHeight: 1 }}
+                    onClick={() => del(i)} title={t('pt.boqDel')} aria-label={t('pt.boqDel')}>×</button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="btn btn-sm btn-outline-secondary" onClick={add}>{t('pt.boqAdd')}</button>
+    </div>
+  );
+}
 
 export default function Pt() {
   const { t, lang } = useI18n();
@@ -183,6 +243,8 @@ export default function Pt() {
               </F>
               <div className="pt-calc-note">{t('pt.calcnote')}</div>
             </div>
+
+            <BoqEditor t={t} onRebuild={() => api.current && api.current.render()} />
 
             <div className="card">
               <div className="sec">{t('pt.preflight')}</div>
