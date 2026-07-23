@@ -27,6 +27,10 @@ var PTDoc = (function () {
   var _lang, _missing, _mounts, _pages, _host, _curBody, _sections, _chapStart;
 
   function fnum(v) { return (+v).toFixed(2).replace(/\.?0+$/, ''); }
+  /* 4 dp for values where 2 dp collapses the information — temperature coefficients
+     (-0.265 %/°C would print as -0.27 and a hand-check of the printed substitution
+     would then NOT reproduce the printed result). Dev-guide typography rule. */
+  function fnum4(v) { return (+v).toFixed(4).replace(/\.?0+$/, ''); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
   /* ── text access with RO fallback ── */
@@ -40,6 +44,42 @@ var PTDoc = (function () {
     return path;
   }
   function missTag() { return '<span class="' + MISS_CLS + '">' + esc(txt('common.missing')) + '</span>'; }
+
+  /* One inverter datasheet field, formatted for the technical table. 'vmppt' is the MPP
+     window rendered as a range; 'pac' converts the stored watts to kW. An absent field is a
+     DATABASE gap (not something the user fills in the PT form) -> plain "-", no missing marker. */
+  function invField(u, key) {
+    if (key === 'vmppt') {
+      return (u.vmpptmin != null && u.vmpptmax != null) ? fnum(u.vmpptmin) + '÷' + fnum(u.vmpptmax) : '-';
+    }
+    if (key === 'pac') return u.pac != null ? fnum(u.pac / 1000) : '-';
+    return u[key] != null ? fnum(u[key]) : '-';
+  }
+
+  /* Panel orientation as a cardinal direction. strings[].azimuth is the PVGIS/solar
+     convention — 0 = S, -90 = E, +90 = V/W (see i18n 'pvs.azimuthhint'). A multi-orientation
+     system (E-W tents) legitimately faces more than one way, so the distinct names are
+     joined ("E/V") rather than pretending there is a single direction. */
+  var CARD_RO = ['S', 'SV', 'V', 'NV', 'N', 'NE', 'E', 'SE'];
+  var CARD_EN = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
+  function orientName(strings) {
+    var C = (_lang === 'en' ? CARD_EN : CARD_RO), names = [], seen = {};
+    (strings || []).forEach(function (s) {
+      if (s.azimuth == null || isNaN(+s.azimuth)) return;
+      var n = C[Math.round((((+s.azimuth % 360) + 360) % 360) / 45) % 8];
+      if (!seen[n]) { seen[n] = 1; names.push(n); }
+    });
+    return names.length ? names.join('/') : null;
+  }
+
+  /* UI-dictionary lookup in the DOCUMENT's language (not the UI language). Shared engine
+     builders (MountingSVG) label their drawings with `mnt.*` keys, which live in the UI
+     dictionaries (i18n_ro/en.js), not in PT_TEXT. */
+  function uiTxt(key) {
+    var d = (typeof I18N_MAPS !== 'undefined') ? I18N_MAPS[_lang] : null;
+    if (d && d[key] !== undefined) return d[key];
+    return (typeof t === 'function') ? t(key) : key;
+  }
 
   /* substitute {key}; empty/null values become the red missing marker + pre-flight entry */
   function sub(tpl, vals, chapter) {
@@ -71,6 +111,12 @@ var PTDoc = (function () {
     var inv = invById(comp.inverterId);
     var mod0 = strings.length ? modById(strings[0].moduleId) : null;
     var consAnual = grid.consumAnualKwh != null ? grid.consumAnualKwh : cons.annualKwh;
+    /* 6.1 "Date tehnice de intrare": Σ inverter AC power (stored in W), the working voltage
+       (the racord voltage is entered in kV) and the occupied footprint + panel orientation.
+       The footprint comes from the SHARED MountingSVG so it equals the IE005 plate's dimension. */
+    var pinvW = comp.pacInvTotal != null ? comp.pacInvTotal : (comp.pacInv != null ? comp.pacInv : null);
+    var mgeo = (typeof MountingSVG !== 'undefined') ? MountingSVG.build({ tr: uiTxt }) : null;
+    var conn = st.connections || {};
     var tmin = ss.tmin != null ? ss.tmin : (ss.tamin != null ? ss.tamin : null);   // cell/ambient min for Voc,cold
     var locale = _lang === 'en' ? 'en-GB' : 'ro-RO';
     var catNames = { A: _lang === 'en' ? 'exceptional' : 'excepțională', B: _lang === 'en' ? 'special' : 'deosebită',
@@ -98,8 +144,15 @@ var PTDoc = (function () {
 
     return {
       meta: meta, grid: grid, sizing: sizing, cons: cons, strings: strings, perString: perString,
+      mgeo: mgeo, comp: comp, conn: conn, ss: ss,
       v: {  // flat substitution map
         kwp: kwp != null ? fnum(kwp) : null,
+        pinvKw: pinvW != null ? fnum(pinvW / 1000) : null,
+        unV: grid.tensiuneRacord != null ? Math.round(grid.tensiuneRacord * 1000) : null,
+        suprafata: (mgeo && mgeo.area) ? Math.round(mgeo.area) : null,
+        orientare: orientName(strings),
+        lenAC: conn.lenAC != null ? fnum(conn.lenAC) : null,
+        matACNume: conn.matAC ? txt(conn.matAC === 'al' ? 'prezentare.matAl' : 'prezentare.matCu') : null,
         nrModule: nrModule || null,
         anualKwh: anual != null ? Math.round(anual).toLocaleString(locale) : null,
         specYield: (anual && kwp) ? Math.round(anual / kwp) : null,
@@ -388,6 +441,14 @@ var PTDoc = (function () {
     else { _missing.push({ chapter: 'prezentare', field: 'gridmode' }); pr.blocks.push(p(missTag())); }
     pr.blocks.push(p(S(txt('prezentare.p4'), 'prezentare')));
     var sn = 0;
+    /* 6.1 — date tehnice de intrare: the nameplate values a reviewer checks first
+       (Pi modules / Pi inverters / Un / f / cos φ), then the occupied footprint + orientation. */
+    sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sIntrare'))));
+    pr.blocks.push({ table: { head: txt('prezentare.intrareCols').map(esc),
+      rows: txt('prezentare.intrareRows').map(function (r) { return [esc(r[0]), S(r[1], 'prezentare')]; }),
+      widths: ['58%', '42%'] } });
+    pr.blocks.push(p(S(txt('prezentare.pSuprafata'), 'prezentare')));
+    pr.blocks.push(p(esc(txt('prezentare.pBransament'))));
     sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sAmplasament'))));
     pr.blocks.push(p(S(txt('prezentare.pAmpl'), 'prezentare')));
     sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sIradiere'))));
@@ -395,6 +456,23 @@ var PTDoc = (function () {
     sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sConsum'))));
     pr.blocks.push(p(S(txt('prezentare.pConsum'), 'prezentare')));
     sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sRacordare'))));
+    /* Derived connection solution: the AC cable section + breaker rating are read from
+       connections.ac (PERSISTED by the Conexiuni step — the PT never re-derives the sizing).
+       The engineer's own free text (grid.ptAlimentare) is appended for the site-specific
+       routing the tool cannot know (trench, existing board, metering point). */
+    var acL = (C.conn && Array.isArray(C.conn.ac)) ? C.conn.ac : [];
+    if (acL.length) {
+      pr.blocks.push(p(S(txt('prezentare.pRacord1'), 'prezentare')));
+      pr.blocks.push({ table: { head: txt('prezentare.racordCols').map(esc),
+        rows: acL.map(function (L, i) {
+          return ['I' + (i + 1), L.pac != null ? fnum(L.pac / 1000) : '-', L.iac != null ? fnum(L.iac) : '-',
+                  L.section != null ? fnum(L.section) : '-', L.mcb != null ? fnum(L.mcb) : '-',
+                  L.drop != null ? fnum(L.drop) : '-'];
+        }) } });
+      pr.blocks.push(p(esc(txt('prezentare.pRacord2'))));
+      if (C.grid.mode === 'no-injection') pr.blocks.push(p(esc(txt('prezentare.pRacordNoinj'))));
+      pr.blocks.push(p(esc(txt('prezentare.pRacordPlansa'))));
+    }
     pr.blocks.push(p(S(txt('prezentare.pRacordare'), 'prezentare')));
     sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sCEF'))));
     pr.blocks.push(p(S(txt('prezentare.pCEF'), 'prezentare')));
@@ -436,6 +514,25 @@ var PTDoc = (function () {
       return ['<b>' + esc(s.label) + '</b>', s.modName ? esc(s.modName) : missTag(), esc(String(s.cfg)),
               s.p != null ? fnum(s.p) : missTag(), cell(s.imp), cell(s.ump), cell(s.isc), cell(s.vocCold), esc(s.ba)];
     }), cls: 'pt-strtbl' } });
+
+    /* inverter technical characteristics — the MPP-tracker window a verifier checks the string
+       sizing against. Values come straight from INVERTER_LIST (datasheet scrape), so an absent
+       field prints "-" (a DB gap) rather than the red "[de completat]" user-input marker.
+       One value column PER INVERTER UNIT (I1, I2, …) so a multi-inverter BOM lists each unit. */
+    var iunits = (typeof resolveInverterUnits === 'function') ? resolveInverterUnits(C.comp) : [];
+    if (iunits.length) {
+      sn++; pr.blocks.push(h3(num + '.' + sn + ' ' + esc(txt('prezentare.sInvertor'))));
+      pr.blocks.push(p(esc(txt('prezentare.pInvertor'))));
+      pr.blocks.push(p('<i>' + iunits.map(function (u, i) {
+        return (iunits.length > 1 ? 'I' + (i + 1) + ' = ' : '') + esc(u.name);
+      }).join(' · ') + '</i>'));
+      var ihead = txt('prezentare.invCols').concat(iunits.length > 1
+        ? iunits.map(function (u, i) { return 'I' + (i + 1); })
+        : [txt('prezentare.invValCol')]);
+      pr.blocks.push({ table: { head: ihead.map(esc), rows: txt('prezentare.invRows').map(function (r) {
+        return [esc(r[0]), esc(r[1])].concat(iunits.map(function (u) { return invField(u, r[2]); }));
+      }) } });
+    }
 
     /* 7 — teste / PIF */
     num++;
@@ -498,7 +595,16 @@ var PTDoc = (function () {
       var nFused = strs.filter(function (s) { return (s.np || 1) > 1; }).length;
       if (nFused) tabl.push([IT('fuse'), 'buc', 2 * nFused]);
       if (nStr) { tabl.push([IT('spdDC'), 'buc', 1]); tabl.push([IT('discDC'), 'buc', 1]); }
-      if (nInv) tabl.push([IT('mcb'), 'buc', nInv]);
+      /* MCB rows carry the RATING when the Conexiuni step has computed one (connections.ac,
+         persisted per inverter); identical ratings collapse to a single quantity row. */
+      var acR = Array.isArray(cn.ac) ? cn.ac : [];
+      if (acR.length) {
+        var byRating = {};
+        acR.forEach(function (L) { var k = L.mcb != null ? fnum(L.mcb) : '?'; byRating[k] = (byRating[k] || 0) + 1; });
+        Object.keys(byRating).forEach(function (k) {
+          tabl.push([IT('mcb') + (k !== '?' ? ' ' + k + ' A' : ''), 'buc', byRating[k]]);
+        });
+      } else if (nInv) tabl.push([IT('mcb'), 'buc', nInv]);
       if (nStr) { tabl.push([IT('rcd'), 'buc', 1]); tabl.push([IT('spdAC'), 'buc', 1]); }
 
       /* manual rows the engineer added in the PT form (Project.section('boq').rows),
@@ -579,6 +685,60 @@ var PTDoc = (function () {
       ax.blocks.push(h3(esc(txt('anexa1.cTable'))));
       ax.blocks.push({ table: { head: txt('anexa1.tCols').map(esc), rows: mrows, widths: ['22%', '24%', '24%', '30%'] } });
     }
+    /* ── Breviar de calcul: the §11 string sizing, formula + numeric substitution +
+       result + the inverter-window verdict, PER STRING. The math is the SHARED
+       sizeString() (string-ui.js) - the same function the Strings page and the Teorie
+       page call, so the document can never disagree with the app. */
+    if (C.strings.length && typeof sizeString === 'function') {
+      var ssv = C.ss || {};
+      var gmn = ssv.gmin != null ? +ssv.gmin : 100, gmx = ssv.gmax != null ? +ssv.gmax : 1000;
+      var ivB = invById((C.comp || {}).inverterId);
+      if (ssv.tamin == null || ssv.tamax == null) _missing.push({ chapter: 'anexa1', field: 'tamin/tamax' });
+      ax.blocks.push(h3(esc(txt('anexa1.brevTitle'))));
+      ax.blocks.push(p(esc(txt('anexa1.brevIntro'))));
+      C.strings.forEach(function (s, i) {
+        var m = modById(s.moduleId);
+        if (!m || !ivB || ssv.tamin == null || ssv.tamax == null) return;
+        var np = s.np || 1, ns = s.ns || (s.count && np ? Math.round(s.count / np) : null);
+        var R = sizeString({ voc: m.voc, vmp: m.vmp, isc: m.isc, imp: m.imp, lv: m.lv, li: m.li,
+          nmot: m.nmot, vinvmax: ivB.vinvmax, vrmppt: ivB.vrmppt, vmpptmin: ivB.vmpptmin,
+          impptmax: ivB.impptmax, iscmppt: ivB.iscmppt,
+          tamin: +ssv.tamin, tamax: +ssv.tamax, gmin: gmn, gmax: gmx });
+        var L = txt('anexa1.brevLbl');
+        var vocStr = (ns != null) ? ns * R.voc_max : null;
+        function row(lbl, rel, subst, res) { return [esc(lbl), esc(rel), esc(subst), '<b>' + esc(res) + '</b>']; }
+        var rows = [
+          row(L.tcmin, 'Tc,min = Ta,min + (NMOT-3% - 20) · Gmin/800',
+              fnum(ssv.tamin) + ' + (' + fnum(R.nmot_lo) + ' - 20) · ' + fnum(gmn) + '/800', fnum(R.tmin) + ' °C'),
+          row(L.tcmax, 'Tc,max = Ta,max + (NMOT+3% - 20) · Gmax/800',
+              fnum(ssv.tamax) + ' + (' + fnum(R.nmot_hi) + ' - 20) · ' + fnum(gmx) + '/800', fnum(R.tmax) + ' °C'),
+          row(L.vocmax, 'Voc,max = Voc · [1 + βVoc/100 · (Tc,min - 25)]',
+              fnum(m.voc) + ' · [1 + (' + fnum4(m.lv) + ')/100 · (' + fnum(R.tmin) + ' - 25)]', fnum(R.voc_max) + ' V'),
+          row(L.vmpmin, 'Vmp,min = Vmp · [1 + βVoc/100 · (Tc,max - 25)]',
+              fnum(m.vmp) + ' · [1 + (' + fnum4(m.lv) + ')/100 · (' + fnum(R.tmax) + ' - 25)]', fnum(R.vmp_min) + ' V'),
+          row(L.iscmax, 'Isc,max = Isc · [1 + αIsc/100 · (Tc,max - 25)] · Gmax/1000',
+              fnum(m.isc) + ' · [1 + ' + fnum4(m.li) + '/100 · (' + fnum(R.tmax) + ' - 25)] · ' + fnum(gmx) + '/1000', fnum(R.isc_max) + ' A'),
+          row(L.impmax, 'Imp,max = Imp · [1 + αIsc/100 · (Tc,max - 25)] · Gmax/1000',
+              fnum(m.imp) + ' · [1 + ' + fnum4(m.li) + '/100 · (' + fnum(R.tmax) + ' - 25)] · ' + fnum(gmx) + '/1000', fnum(R.imp_max) + ' A'),
+        ];
+        if (vocStr != null) rows.push(row(L.vocstr, 'Voc,șir = Ns · Voc,max',
+          String(ns) + ' · ' + fnum(R.voc_max), fnum(vocStr) + ' V'));
+        ax.blocks.push(p('<b>' + esc('S' + (i + 1)) + '</b> - ' + esc(m.name) + ' / ' + esc(ivB.name)));
+        ax.blocks.push({ table: { head: txt('anexa1.brevCols').map(esc), rows: rows,
+          widths: ['24%', '30%', '30%', '16%'], cls: 'pt-strtbl' } });
+        ax.blocks.push(p(sub(txt('anexa1.brevNs'),
+          { nsmin: R.ns_min, nsmax: R.ns_max, ns: ns != null ? ns : '-', np: np, npmax: R.np_max }, 'anexa1')));
+        /* verdict uses the ACTUAL adopted Ns/Np, not just the generic window */
+        var okV = (vocStr == null) || (vocStr <= ivB.vinvmax);
+        var vals = { vocstr: vocStr != null ? fnum(vocStr) : '-', vinvmax: fnum(ivB.vinvmax),
+                     impmax: fnum(R.imp_max * np), impptmax: fnum(ivB.impptmax),
+                     iscmax: fnum(R.isc_max * np), iscmppt: fnum(ivB.iscmppt) };
+        var pass = okV && (R.imp_max * np <= ivB.impptmax) && (R.isc_max * np <= ivB.iscmppt);
+        ax.blocks.push(p((pass ? '' : '<span class="pt-miss">') +
+          esc(sub(txt(pass ? 'anexa1.brevOk' : 'anexa1.brevBad'), vals, 'anexa1')) + (pass ? '' : '</span>')));
+      });
+    }
+
     if (C.perString.length) {
       ax.blocks.push(h3(esc(txt('anexa1.bdTitle'))));
       var bs = Array.isArray(sz.monthlyByString) ? sz.monthlyByString : [];
@@ -599,19 +759,40 @@ var PTDoc = (function () {
     var plChap = chap('planse', { pageBreak: true, sectionMark: 'planse', tocTitle: txt('planse.title') });
     plChap.blocks.push(h2(esc(txt('planse.title'))));
     plChap.blocks.push(p(esc(txt('planse.note'))));
-    /* lead drawing: the single-line schematic, ONE landscape plate, rendered by the SHARED SchemaSVG
-       (same builder as the schema.html editor). The drawing carries its own cartouche/title block, so
-       it goes on a bare page and is rotated 90° to lie landscape on the portrait sheet (addPlate/CSS). */
-    if (typeof SchemaSVG !== 'undefined') {
-      var sres = SchemaSVG.build({ nodeIds: false, learn: false });
-      plChap.blocks.push({ pageBreak: true, bare: true });
-      if (sres.hasStrings) plChap.blocks.push({ plate: { svg: sres.svg } });
-      else { _missing.push({ chapter: 'planse', field: 'schemaMonofilara' }); plChap.blocks.push({ plate: { missing: txt('planse.schemaMissing') } }); }
-    }
+    /* Two of the borderou plates are DRAWN by shared engine builders instead of being
+       "se anexează" placeholders — and they are emitted IN BORDEROU ORDER inside the loop
+       below, so the plates follow the borderou (IE001 … IE005):
+         · IE002 — the single-line schematic (SchemaSVG, same builder as the schema editor).
+           It carries its OWN full title block, so it goes on a BARE page rotated 90° to lie
+           landscape (addPlate/CSS); we stamp it with the plate id so it reads "Planșa IE002"
+           instead of the standalone drawing's "pag. 1/1".
+         · IE005 — the two to-scale mounting views (MountingSVG), inside the normal plate frame.
+       Both fall back to the placeholder + a pre-flight entry when their step has no data yet. */
+    var sres = (typeof SchemaSVG !== 'undefined') ? SchemaSVG.build({ nodeIds: false, learn: false, plateNo: 'IE002' }) : null;
+    var mres = C.mgeo;   // built once in collect() (also feeds 6.1's occupied-area figure)
     txt('borderou.planse').forEach(function (pl) {
+      /* IE002 — bare landscape plate, the schematic supplies its own cartouche */
+      if (pl[1] === 'IE002' && sres) {
+        plChap.blocks.push({ pageBreak: true, bare: true });
+        if (sres.hasStrings) { plChap.blocks.push({ plate: { svg: sres.svg } }); }
+        else {
+          _missing.push({ chapter: 'planse', field: 'schemaMonofilara' });
+          plChap.blocks.push({ plate: { missing: txt('planse.schemaMissing') } });
+        }
+        return;
+      }
+      var drawn = (pl[1] === 'IE005' && mres && mres.hasData)
+        ? '<div class="pt-pl-draw">' +
+            '<div class="pt-pl-view"><div class="pt-pl-vt">' + esc(txt('planse.viewSide')) + '</div>' + mres.side + '</div>' +
+            '<div class="pt-pl-view"><div class="pt-pl-vt">' + esc(txt('planse.viewPlan')) + '</div>' +
+              (mres.hasPlan ? mres.plan
+                            : '<div class="pt-pl-nodata">' + esc(txt('planse.noPlan')) + '</div>') + '</div>' +
+          '</div>'
+        : null;
+      if (pl[1] === 'IE005' && !drawn) _missing.push({ chapter: 'planse', field: 'planAmplasamentPanouri' });
       plChap.blocks.push({ pageBreak: true });
       plChap.blocks.push({ html:
-        '<div class="pt-plansa"><div class="pt-pl-empty">' + esc(txt('planse.seAnexeaza')) + '</div>' +
+        '<div class="pt-plansa">' + (drawn || '<div class="pt-pl-empty">' + esc(txt('planse.seAnexeaza')) + '</div>') +
         '<table class="pt-cartus"><tr>' +
           '<td>' + esc(txt('planse.cartus.proiectat')) + ': ' + (v.proiectantNume ? esc(v.proiectantNume) : missTag()) + '<br>' +
                    esc(txt('planse.cartus.aprobat')) + ': ' + (v.proiectantNume ? esc(v.proiectantNume) : missTag()) + '</td>' +

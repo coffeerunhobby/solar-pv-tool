@@ -222,6 +222,24 @@
       "eurPerKw": 90
     },
     {
+      "id": "huawei-sun2000-10k-map0",
+      "brandId": "huawei",
+      "name": "Huawei SUN2000-10K-MAP0 (10 kW)",
+      "note": "Three-phase hybrid Smart Energy Controller. LUNA2000-5/10/15-S0 and -7/14/21-S1 battery compatible; recommended max PV 18 kWp; 98.6% max efficiency (98.1% EU weighted); arc fault protection; integrated WLAN + FusionSolar app.",
+      "vinvmax": 1100,
+      "vrmppt": 600,
+      "vmpptmin": 160,
+      "vmpptmax": 1000,
+      "impptmax": 16,
+      "iscmppt": 22,
+      "datasheet": "https://solar.huawei.com/admin/asset/v1/pro/view/1895ef0ef0a64bd5ae353e422fbd4af4.pdf",
+      "pac": 10000,
+      "nmppt": 2,
+      "priceEur": 1350,
+      "priceSrc": "est. EUR/kW (3F hybrid)",
+      "eurPerKw": 135
+    },
+    {
       "id": "huawei-sun2000-12ktl-m2",
       "brandId": "huawei",
       "name": "Huawei SUN2000-12KTL-M2 (12 kW)",

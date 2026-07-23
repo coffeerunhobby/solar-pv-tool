@@ -10,6 +10,8 @@
      build(opts) -> { svg, hasStrings, model:{devs,edges,hasStrings}, report }
         opts.nodeIds (default true)  — draw the n# scaffolding ids (editor); pass false for the PT plate
         opts.learn   (default Explain.isOn() if present, else false) — draw the per-wire cable-type labels
+        opts.plateNo (default null) — stamp 'Planșa <id>' in the title cell instead of 'pag. 1/1'
+                                     (the PT passes its borderou plate id; standalone stays 1/1)
      STATE I/O used by the editor UI (schema.html): cellOf/setCell, labelOf/setLabel,
      effectiveEdges/setEdges, cableOf/setCable, persist, plus COLS/ROWS/rowLetter/LABEL_RULES.
 
@@ -435,6 +437,7 @@ window.SchemaSVG = (function () {
   }
 
   /* ── Cartouche frame, rulers, title block ───────────────────────────────── */
+  var _plateNo = null;    // set by build({plateNo}) — stamps the plate id in the title cell
   function cartouche() {
     var meta = Project.section('meta') || {};
     var pj = meta.proiectant || {}, s = '';
@@ -474,7 +477,11 @@ window.SchemaSVG = (function () {
     s += '<rect x="' + tcx + '" y="' + ty0 + '" width="' + tcw + '" height="' + TITLE_H + '" fill="none" stroke="#333"/>';
     s += '<text x="' + (tcx + tcw / 2) + '" y="' + (ty0 + 46) + '" text-anchor="middle" font-size="15" font-weight="700" fill="#111">SCHEMĂ</text>';
     s += '<text x="' + (tcx + tcw / 2) + '" y="' + (ty0 + 64) + '" text-anchor="middle" font-size="15" font-weight="700" fill="#111">MONOFILARĂ</text>';
-    s += '<text x="' + (tcx + tcw / 2) + '" y="' + (ty0 + 92) + '" text-anchor="middle" font-size="12" fill="#666">' + esc(meta.codDoc || '') + '  ·  pag. 1/1</text>';
+    /* Bottom line of the title cell: standalone (editor / export) the drawing is its own
+       one-page document -> "pag. 1/1". Inside the Proiect Tehnic it is a NUMBERED PLATE of a
+       multi-page document, so the caller passes plateNo and we stamp the plate id instead. */
+    s += '<text x="' + (tcx + tcw / 2) + '" y="' + (ty0 + 92) + '" text-anchor="middle" font-size="12" fill="#666">' +
+         esc(meta.codDoc || '') + '  ·  ' + (_plateNo ? 'Planșa ' + esc(_plateNo) : 'pag. 1/1') + '</text>';
     return s;
   }
 
@@ -482,6 +489,7 @@ window.SchemaSVG = (function () {
   function build(opts) {
     opts = opts || {};
     var showIds = opts.nodeIds !== false;   // editor scaffolding ids; the PT plate passes nodeIds:false
+    _plateNo = opts.plateNo || null;        // PT passes the borderou plate id (e.g. 'IE002')
     var learnOn = (opts.learn != null) ? opts.learn : ((typeof Explain !== 'undefined') && Explain.isOn());
     var b = buildDevices();
     if (!b.hasStrings) return { svg: '', hasStrings: false, model: b, report: b.report };

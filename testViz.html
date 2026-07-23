@@ -41,25 +41,25 @@
 <div class="wrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
 
 <!-- engine + grid stack (same as the step pages, minus the UI/gate/project layers) -->
-<script src="js/config.js?v=1.2.7"></script>
-<script src="js/grid-deshuffle.js?v=1.2.7"></script>
-<script src="js/constants.js?v=1.2.7"></script>
-<script src="js/data-loader.js?v=1.2.7"></script>
-<script src="js/solar-geometry.js?v=1.2.7"></script>
-<script src="js/convention.js?v=1.2.7"></script>
-<script src="js/irradiance-ineichen.js?v=1.2.7"></script>
-<script src="js/irradiance-hofierka.js?v=1.2.7"></script>
-<script src="js/kt-png.js?v=1.2.7"></script>
-<script src="js/kt-grid.js?v=1.2.7"></script>
-<script src="js/horizon-png.js?v=1.2.7"></script>
-<script src="js/horizon-grid.js?v=1.2.7"></script>
-<script src="js/temp-png.js?v=1.2.7"></script>
-<script src="js/temp-grid.js?v=1.2.7"></script>
-<script src="js/tl-png.js?v=1.2.7"></script>
-<script src="js/tl-grid.js?v=1.2.7"></script>
-<script src="js/wind-png.js?v=1.2.7"></script>
-<script src="js/wind-grid.js?v=1.2.7"></script>
-<script src="js/formulas.js?v=1.2.7"></script><script src="js/yield-engine.js?v=1.2.7"></script>
+<script src="js/config.js?v=1.2.9"></script>
+<script src="js/grid-deshuffle.js?v=1.2.9"></script>
+<script src="js/constants.js?v=1.2.9"></script>
+<script src="js/data-loader.js?v=1.2.9"></script>
+<script src="js/solar-geometry.js?v=1.2.9"></script>
+<script src="js/convention.js?v=1.2.9"></script>
+<script src="js/irradiance-ineichen.js?v=1.2.9"></script>
+<script src="js/irradiance-hofierka.js?v=1.2.9"></script>
+<script src="js/kt-png.js?v=1.2.9"></script>
+<script src="js/kt-grid.js?v=1.2.9"></script>
+<script src="js/horizon-png.js?v=1.2.9"></script>
+<script src="js/horizon-grid.js?v=1.2.9"></script>
+<script src="js/temp-png.js?v=1.2.9"></script>
+<script src="js/temp-grid.js?v=1.2.9"></script>
+<script src="js/tl-png.js?v=1.2.9"></script>
+<script src="js/tl-grid.js?v=1.2.9"></script>
+<script src="js/wind-png.js?v=1.2.9"></script>
+<script src="js/wind-grid.js?v=1.2.9"></script>
+<script src="js/formulas.js?v=1.2.9"></script><script src="js/yield-engine.js?v=1.2.9"></script>
 <script>
 const KWP=1, PR=0.86;   // matches build-testpoints.js (loss 14% -> pr 0.86); tilt + az are PER-POINT (PVGIS-optimal)
 const TCOPTS={ powModel:'huld', huldSet:'csi2025', tcModel:'noct', uc:25, uv:6.84 };
@@ -71,7 +71,7 @@ function ready(){ return typeof resolveKt==='function' && typeof KT_DATA!=='unde
   typeof TEMP_DATA!=='undefined' && TEMP_DATA && typeof WIND_DATA!=='undefined' && WIND_DATA; }   // no Kt tile now: de-biased global base only
 
 async function run(){
-  const data = await (await fetch('data/testpoints.json?v=1.2.7')).json();
+  const data = await (await fetch('data/testpoints.json?v=1.2.9')).json();
   document.getElementById('meta').textContent =
     `${data.n} points · PVGIS ${data.generated} · ${data.mounting} · ${data.loss}% loss · v${typeof APP_VERSION!=='undefined'?APP_VERSION:'?'} · de-biased CLARA + terrain horizon`;
   // wait for grids

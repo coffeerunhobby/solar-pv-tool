@@ -360,142 +360,17 @@ function setupMounting() {
     return p && p.el > 0 ? { alt: p.el, az: p.az } : { alt: 1, az: 180 };
   }
 
-  /* ── SVG helpers ── */
-  function line(x1, y1, x2, y2, cls, extra) { return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" ' + (extra || '') + ' class="' + cls + '"/>'; }
+  /* ── SVG helpers — only `txt` is still local (the roof-plane diagrams below use it);
+     line/arc moved to js/mounting-svg.js with the four to-scale view builders. ── */
   function txt(x, y, s, cls, anchor) { return '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" font-size="11" text-anchor="' + (anchor || 'middle') + '" class="' + cls + '">' + s + '</text>'; }
-  function arc(cx, cy, r, a0, a1, cls) { // angles in deg measured CCW from +x, SVG y-down
-    var x0 = cx + r * Math.cos(-a0 * D2R), y0 = cy + r * Math.sin(-a0 * D2R);
-    var x1 = cx + r * Math.cos(-a1 * D2R), y1 = cy + r * Math.sin(-a1 * D2R);
-    var large = Math.abs(a1 - a0) > 180 ? 1 : 0, sweep = a1 > a0 ? 0 : 1;
-    return '<path d="M' + x0.toFixed(1) + ',' + y0.toFixed(1) + ' A' + r + ',' + r + ' 0 ' + large + ' ' + sweep + ' ' + x1.toFixed(1) + ',' + y1.toFixed(1) + '" fill="none" stroke-width="1.2" class="' + cls + '" style="stroke:currentColor"/>';
-  }
 
-  /* ── Side elevation (single direction), to scale ── */
-  function sideSingle(L, tilt, X, foot, Y, pitch, alt) {
-    var W = 560, H = 322, m = 46, mb = 68, groundY = H - mb, x0 = m;   // mb = taller bottom band for the Y + pitch dimension labels
-    var realW = pitch + foot, realH = X;
-    var scale = Math.min((W - 2 * m) / (realW || 1), (H - m - mb) / (realH || 1));
-    var p1f = [x0, groundY], p1b = [x0 + foot * scale, groundY - X * scale];
-    var p2f = [x0 + pitch * scale, groundY], p2b = [p2f[0] + foot * scale, groundY - X * scale];
-    var footEnd = [p1b[0], groundY], shadowTip = p2f;
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
-    s += '<g stroke-width="1">';
-    // shadow band under sun ray (row1 top edge to next row foot)
-    s += '<polygon points="' + p1b[0].toFixed(1) + ',' + p1b[1].toFixed(1) + ' ' + footEnd[0].toFixed(1) + ',' + footEnd[1].toFixed(1) + ' ' + shadowTip[0].toFixed(1) + ',' + shadowTip[1].toFixed(1) + '" class="svg-shadow" stroke-width="1"/>';
-    // ground
-    s += line(x0 - 6, groundY, W - m + 6, groundY, 'svg-ground', 'stroke-width="1.3"');
-    // modules
-    s += line(p1f[0], p1f[1], p1b[0], p1b[1], 'svg-mod', 'stroke-width="5" stroke-linecap="round"');
-    s += line(p2f[0], p2f[1], p2b[0], p2b[1], 'svg-mod', 'stroke-width="5" stroke-linecap="round"');
-    // rise X (dashed)
-    s += line(p1b[0], p1b[1], footEnd[0], footEnd[1], 'svg-dim', 'stroke-dasharray="3 3"');
-    s += txt(p1b[0] + 8, (p1b[1] + footEnd[1]) / 2, 'X=' + num(X) + ' m', 'svg-dimtxt', 'start');
-    // sun ray from shadowTip up-left through p1b, extended
-    var dx = (p1b[0] - shadowTip[0]), dy = (p1b[1] - shadowTip[1]), len = Math.hypot(dx, dy);
-    var ext = 64 / (len || 1);
-    var sunPt = [p1b[0] + dx * ext, p1b[1] + dy * ext];
-    s += line(shadowTip[0], shadowTip[1], sunPt[0], sunPt[1], 'svg-sun', 'stroke-dasharray="5 3" stroke-width="1.4"');
-    s += '<circle cx="' + sunPt[0].toFixed(1) + '" cy="' + sunPt[1].toFixed(1) + '" r="9" fill="#f0a020"/>';
-    // tilt angle arc at p1f
-    s += '<g class="svg-ang" style="color:var(--clr-primary)">' + arc(p1f[0], p1f[1], 26, 0, tilt, 'svg-ang') + '</g>';
-    s += txt(p1f[0] + 34, p1f[1] - 6, 'β = ' + tilt + '°', 'svg-ang', 'start');
-    // altitude angle arc at shadowTip
-    s += '<g class="svg-angsun" style="color:#f0a020">' + arc(shadowTip[0], shadowTip[1], 30, 180 - alt, 180, 'svg-angsun') + '</g>';
-    s += txt(shadowTip[0] - 40, shadowTip[1] - 8, 'α = ' + num(alt, 1) + '°', 'svg-angsun', 'end');
-    // Y dimension (gap) along ground
-    var dimY = groundY + 16;
-    s += line(footEnd[0], dimY, shadowTip[0], dimY, 'svg-dim', 'stroke-width="1" marker-start="" ');
-    s += line(footEnd[0], dimY - 3, footEnd[0], dimY + 3, 'svg-dim', '');
-    s += line(shadowTip[0], dimY - 3, shadowTip[0], dimY + 3, 'svg-dim', '');
-    s += txt((footEnd[0] + shadowTip[0]) / 2, dimY + 13, 'Y=' + num(Y) + ' m', 'svg-dimtxt');
-    // pitch dimension
-    var dimP = groundY + 34;
-    s += line(p1f[0], dimP, p2f[0], dimP, 'svg-dim', '');
-    s += line(p1f[0], dimP - 3, p1f[0], dimP + 3, 'svg-dim', '');
-    s += line(p2f[0], dimP - 3, p2f[0], dimP + 3, 'svg-dim', '');
-    s += txt((p1f[0] + p2f[0]) / 2, dimP + 13, tr('mnt.pitch') + ' ' + num(pitch) + ' m', 'svg-dimtxt');
-    // module length label along module 1
-    s += txt((p1f[0] + p1b[0]) / 2 - 6, (p1f[1] + p1b[1]) / 2 - 8, 'L=' + num(L) + ' m', 'svg-dimtxt');
-    s += '</g></svg>';
-    return s;
-  }
-
-  /* ── Side elevation (accordion E–W tent), to scale ── */
-  function sideAccordion(L, tilt, X, foot) {
-    var W = 560, H = 300, m = 50, groundY = H - m, x0 = m;
-    var pairW = 2 * foot, pairs = 3;
-    var scale = Math.min((W - 2 * m) / (pairs * pairW || 1), (H - 2 * m) / (X || 1));
-    var WEST = 'var(--clr-primary)', EAST = '#2bb3a3';
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
-    s += line(x0 - 6, groundY, W - m + 6, groundY, 'svg-ground', 'stroke-width="1.3"');
-    for (var i = 0; i < pairs; i++) {
-      var bx = x0 + i * pairW * scale;
-      var ridge = [bx + foot * scale, groundY - X * scale];
-      // left slope "/" faces West, right slope "\" faces East
-      s += line(bx, groundY, ridge[0], ridge[1], '', 'stroke-width="5" stroke-linecap="round" stroke="' + WEST + '"');
-      s += line(ridge[0], ridge[1], bx + 2 * foot * scale, groundY, '', 'stroke-width="5" stroke-linecap="round" stroke="' + EAST + '"');
-      if (i === 0) {
-        s += '<text x="' + (bx + foot * scale * 0.4) + '" y="' + (groundY - X * scale * 0.5 + 2) + '" font-size="11" text-anchor="end" fill="' + WEST + '" font-weight="600">V</text>';
-        s += '<text x="' + (ridge[0] + foot * scale * 0.6) + '" y="' + (groundY - X * scale * 0.5 + 2) + '" font-size="11" text-anchor="start" fill="' + EAST + '" font-weight="600">E</text>';
-      }
-    }
-    s += '<circle cx="' + (x0 + 26) + '" cy="' + (m - 4) + '" r="9" fill="#f0a020"/>';
-    // wiring legend
-    s += '<rect x="' + (x0) + '" y="' + (m + 6) + '" width="11" height="5" fill="' + EAST + '"/>' + txt(x0 + 16, m + 11, 'E → MPPT 1', 'svg-dimtxt', 'start');
-    s += '<rect x="' + (x0 + 96) + '" y="' + (m + 6) + '" width="11" height="5" fill="' + WEST + '"/>' + txt(x0 + 112, m + 11, 'V → MPPT 2', 'svg-dimtxt', 'start');
-    s += txt(W - m, m + 11, 'X=' + num(X) + ' m · ' + tr('mnt.pitch') + ' ' + num(foot) + ' m', 'svg-dimtxt', 'end');
-    s += '</svg>';
-    return s;
-  }
-
-  /* ── Side elevation (pitched roof, coplanar / flush), to scale ── */
-  function sideFlush(L, tilt, rows) {
-    var W = 560, H = 300, m = 50, groundY = H - m, x0 = m;
-    var n = Math.max(1, Math.min(rows || 4, 8));        // show up to 8 modules along the slope
-    var run = n * L * Math.cos(tilt * D2R);             // horizontal extent of the slope
-    var riseTot = n * L * Math.sin(tilt * D2R);         // vertical extent
-    var scale = Math.min((W - 2 * m) / (run || 1), (H - 2 * m) / (riseTot || 1));
-    var bx = x0, by = groundY, ex = x0 + run * scale, ey = groundY - riseTot * scale;
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
-    // ground/eave + the roof rafter (dashed) + a wall down from the ridge
-    s += line(x0 - 6, groundY, ex + 24, groundY, 'svg-ground', 'stroke-width="1.3"');
-    s += line(bx, by, ex, ey, 'svg-ground', 'stroke-width="1" stroke-dasharray="2 2"');
-    s += line(ex, ey, ex, groundY, 'svg-ground', 'stroke-width="1" stroke-dasharray="2 2"');
-    // modules laid flush along the slope, touching (butt caps), alternating shade
-    for (var i = 0; i < n; i++) {
-      var t0 = i / n, t1 = (i + 1) / n;
-      s += line(bx + (ex - bx) * t0, by + (ey - by) * t0, bx + (ex - bx) * t1, by + (ey - by) * t1,
-        'svg-mod', 'stroke-width="7" stroke-linecap="butt"' + (i % 2 ? ' opacity="0.78"' : ''));
-    }
-    // tilt arc + labels
-    s += '<g class="svg-ang" style="color:var(--clr-primary)">' + arc(bx, by, 28, 0, tilt, 'svg-ang') + '</g>';
-    s += txt(bx + 36, by - 6, 'β = ' + tilt + '°', 'svg-ang', 'start');
-    s += txt(bx + (ex - bx) / n / 2 + 6, by + (ey - by) / n / 2 - 9, 'L=' + num(L) + ' m', 'svg-dimtxt', 'start');
-    s += txt(W - m, m, tr('mnt.flushtag'), 'svg-dimtxt', 'end');
-    s += '</svg>';
-    return s;
-  }
-
-  /* ── Top view, to scale ── */
-  function planSVG(rows, perRow, pitch, perp, mode, foot) {
-    var W = 560, H = 220, m = 26;
-    var stepDeep = (mode === 'ew' || mode === 'flush') ? foot : pitch;
-    var totalDeep = rows * stepDeep, totalWide = perRow * perp;
-    if (!rows || !perRow) return '<svg viewBox="0 0 ' + W + ' ' + H + '"><text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" font-size="12" class="svg-dimtxt">-</text></svg>';
-    var scale = Math.min((W - 2 * m) / (totalWide || 1), (H - 2 * m) / (totalDeep || 1));
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
-    var modDeep = (mode === 'flush') ? foot : foot * 0.92;  // coplanar rows touch (no gap); flat-mount rows leave a hint of gap
-    for (var r = 0; r < rows; r++) {
-      var y = m + r * stepDeep * scale;
-      for (var c = 0; c < perRow; c++) {
-        var x = m + c * perp * scale;
-        s += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + (perp * scale - 1.5).toFixed(1) + '" height="' + (modDeep * scale).toFixed(1) + '" rx="1.5" fill="var(--clr-primary)" opacity="0.85"/>';
-      }
-    }
-    s += txt(W / 2, H - 6, num(totalWide) + ' × ' + num(totalDeep) + ' m', 'svg-dimtxt');
-    s += '</svg>';
-    return s;
-  }
+  /* ── To-scale views: the four builders live in the SHARED js/mounting-svg.js so the
+     Proiect Tehnic plate renders the SAME drawing (single source of truth, exactly like
+     schema-svg.js). These are thin delegates - the call sites below are unchanged. ── */
+  function sideSingle(L, tilt, X, foot, Y, pitch, alt) { return MountingSVG.sideSingle(L, tilt, X, foot, Y, pitch, alt); }
+  function sideAccordion(L, tilt, X, foot) { return MountingSVG.sideAccordion(L, tilt, X, foot); }
+  function sideFlush(L, tilt, rows) { return MountingSVG.sideFlush(L, tilt, rows); }
+  function planSVG(rows, perRow, pitch, perp, mode, foot) { return MountingSVG.planSVG(rows, perRow, pitch, perp, mode, foot); }
 
   function compute(persist) {
     if (dead || !document.getElementById('mnt-results')) return;

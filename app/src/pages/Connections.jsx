@@ -325,10 +325,36 @@ function buildGenHtml(strings) {
   return html;
 }
 
+/* ── PURE AC sizing, one line per inverter unit ──────────────────────────────
+   Lifted out of buildAcHtml so the page can PERSIST what it computes (cable section +
+   MCB rating) instead of only rendering it — the Proiect Tehnic quotes those numbers in
+   "Soluția propusă pentru racordare" and the parts list uses the MCB rating. Keeping the
+   math here (one place) is why the PT does NOT re-derive it.
+   One AC cable + MCB per inverter (each inverter has its own run to the board).
+   Course relations (17)/(18) 1F, (19)/(20) 3F, cosφ = 1. */
+function acLinesFor(comp, ph, mat, lenM, dMax) {
+  var units = (typeof resolveInverterUnits === 'function') ? resolveInverterUnits(comp) : [];
+  if (!units.length && comp && comp.pacInv) units = [{ pac: comp.pacInv }];   // legacy single-inverter fallback
+  var rho    = mat === 'cu' ? RHO_CU_AC : RHO_AL_AC;
+  var ampTbl = mat === 'cu' ? AMP_AC_CU : AMP_AC_AL;
+  var vRef   = ph === 3 ? 400 : 230, factor = ph === 3 ? 1.732 : 2;
+  var lines = units.map(function (u) {
+    var pac = u.pac;
+    var iac = pac / (ph === 3 ? 1.732 * 400 : 230);
+    var S_vd  = (factor * rho * lenM * iac * 100) / (dMax * vRef);
+    var S_amp = minCrossForAmpacity(ampTbl, iac);
+    var S_final = nextStd(STD_CROSS, Math.max(S_vd, S_amp, 1.5));
+    var R_C = rho * lenM / S_final;
+    var dropAct = factor * R_C * iac / vRef * 100;
+    return { pac: pac, iac: iac, S_vd: S_vd, S_final: S_final, R_C: R_C, dropAct: dropAct, mcb: nextStd(STD_MCB, iac) };
+  });
+  return { units: units, lines: lines };
+}
+
 /* ── AC cable + protection, PER INVERTER (verbatim from legacy renderAC) ── */
 function buildAcHtml(comp, ph, mat, lenM, dMax, learnOn) {
-  var units = (typeof resolveInverterUnits === 'function') ? resolveInverterUnits(comp) : [];
-  if (!units.length && comp.pacInv) units = [{ pac: comp.pacInv }];   // legacy single-inverter fallback
+  var sized = acLinesFor(comp, ph, mat, lenM, dMax);
+  var units = sized.units, lines = sized.lines;
   if (!units.length) {
     return '<p class="no-data" style="margin-top:8px">' + tr('cx.noac') + '</p>';
   }
@@ -337,19 +363,6 @@ function buildAcHtml(comp, ph, mat, lenM, dMax, learnOn) {
   var ampTbl = mat === 'cu' ? AMP_AC_CU : AMP_AC_AL;
   var vRef   = ph === 3 ? 400 : 230, factor = ph === 3 ? 1.732 : 2;
   var multi  = units.length > 1;
-
-  /* one AC cable + MCB per inverter (each inverter has its own run to the board).
-     Course relations (17)/(18) 1F, (19)/(20) 3F, cosφ = 1. */
-  function lineFor(pac) {
-    var iac = pac / (ph === 3 ? 1.732 * 400 : 230);
-    var S_vd  = (factor * rho * lenM * iac * 100) / (dMax * vRef);
-    var S_amp = minCrossForAmpacity(ampTbl, iac);
-    var S_final = nextStd(STD_CROSS, Math.max(S_vd, S_amp, 1.5));
-    var R_C = rho * lenM / S_final;
-    var dropAct = factor * R_C * iac / vRef * 100;
-    return { pac: pac, iac: iac, S_vd: S_vd, S_final: S_final, R_C: R_C, dropAct: dropAct, mcb: nextStd(STD_MCB, iac) };
-  }
-  var lines = units.map(function (u) { return lineFor(u.pac); });
 
   var html = '<div class="res-grid" style="margin-top:8px">';
   lines.forEach(function (L, k) {
@@ -471,6 +484,19 @@ export default function Connections() {
       dropAC: +dropAC,
     });
   }, [JSON.stringify(cables), dropDC, phases, matAC, lenAC, dropAC]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Persist the COMPUTED AC sizing (section + MCB per inverter) — same idea as the mounting
+     step saving its derived pitch/rows, so the Proiect Tehnic ("Soluția propusă pentru
+     racordare") and the parts list can quote real numbers without re-deriving the math.
+     Deliberately SEPARATE from the input persist above and WITHOUT its first-render skip:
+     these must be written even when the engineer only opens this step and changes nothing.
+     The deep-equality guard stops the patch→re-render→patch loop. */
+  useEffect(() => {
+    const ac = acLinesFor(comp, +phases, matAC, +lenAC || 10, +dropAC || 1.0).lines
+      .map((L) => ({ pac: L.pac, iac: L.iac, section: L.S_final, mcb: L.mcb, drop: L.dropAct }));
+    const prev = (Project.section('connections') || {}).ac || [];
+    if (JSON.stringify(prev) !== JSON.stringify(ac)) Project.patch('connections', { ac });
+  }, [JSON.stringify(comp.inverters), comp.inverterId, comp.pacInv, phases, matAC, lenAC, dropAC]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Done once there is at least one sized string to cable (legacy trigger). */
   useEffect(() => {

@@ -193,6 +193,26 @@ const INVERTER_LIST = [
     priceEur: 900, priceSrc: 'Geizhals DE', eurPerKw: 90,
   },
   {
+    /* Values read from the OFFICIAL Huawei datasheet "SUN2000-5/6/8/10/12K-MAP0"
+       (v02-202406), 10K column. NOTE: the datasheet lists a SECOND "operating voltage
+       range 600~980V" under Input (DC Battery) - that is the LUNA2000 battery window,
+       NOT the PV MPPT range; the PV range is 160-1,000 V. */
+    id:       'huawei-sun2000-10k-map0',
+    brandId:   'huawei',
+    name:     'Huawei SUN2000-10K-MAP0 (10 kW)',
+    note:     'Three-phase hybrid Smart Energy Controller. LUNA2000-5/10/15-S0 and -7/14/21-S1 battery compatible; recommended max PV 18 kWp; 98.6% max efficiency (98.1% EU weighted); arc fault protection; integrated WLAN + FusionSolar app.',
+    vinvmax:  1100,
+    vrmppt:   600,
+    vmpptmin: 160,
+    vmpptmax: 1000,
+    impptmax: 16,
+    iscmppt:  22,
+    datasheet: 'https://solar.huawei.com/admin/asset/v1/pro/view/1895ef0ef0a64bd5ae353e422fbd4af4.pdf',
+    pac: 10000,
+    nmppt: 2,   /* MPP trackers - datasheet scrape */
+    priceEur: 1350, priceSrc: 'est. EUR/kW (3F hybrid)', eurPerKw: 135,
+  },
+  {
     id:       'huawei-sun2000-12ktl-m2',
     brandId:   'huawei',
     name:     'Huawei SUN2000-12KTL-M2 (12 kW)',
@@ -4272,6 +4292,32 @@ const MODULE_LIST = [
     cpv: 1,
   },
   {
+    /* Values read from the OFFICIAL LONGi datasheet "LR5-66HPH 495~515M" (515M column),
+       not estimated. NOTE: a request for "LR5-66HTH-515M" is a model-code slip - the HTH
+       (Hi-MO X6 Explorer, HPBC) series has no 515 W variant (its datasheet is 520~540M);
+       the real LONGi 66-cell 515 W module is this HPH (Hi-MO 5m, PERC) one.
+       Not listed on comparepv (that series is absent there), so no `cpv` flag. */
+    id:      'longi-lr5-66hph-515m',
+    brandId:  'longi-solar',
+    name:    'LONGi Hi-MO 5m LR5-66HPH-515M (515 W)',
+    note:    '132 half-cut cells (6x22), 9-busbar, MlO gallium-doped wafer PERC. Monofacial, 2094x1134x35mm, 26.0 kg. Datasheet series LR5-66HPH 495~515M.',
+    voc:  46.00,
+    vmp:  38.83,
+    isc:  14.13,
+    imp:  13.27,
+    maxfuse: 25,   /* A - max series fuse (Iprod,FV), datasheet */
+    lv:   -0.265,
+    li:    0.05,
+    nmot:  45,
+    pmax: 515, length: 2094, width: 1134,
+    priceEur: 54, priceSrc: 'est. tier-1 EUR/Wp', eurPerWp: 0.105,
+    gamma: -0.34,   /* Pmpp temp coeff %/°C */
+    efficiency: 21.7,   /* datasheet STC module efficiency % */
+    cellType:   'PERC',
+    weight:     26.0,   /* kg */
+    datasheet: 'https://www.enfsolar.com/pv/panel-datasheet/crystalline/56187',
+  },
+  {
     id:      'longi-lr7-54hvh-500m',
     brandId:  'longi-solar',
     name:    'LONGi Hi-MO X LR7-54HVH-500M (500 W)',
@@ -6389,6 +6435,55 @@ function showMicroNote() {
   var w  = document.getElementById('ss-warnings'); if (w) w.innerHTML = '';
 }
 
+/* ── PURE §11 string sizing (Neamț course) — SINGLE SOURCE OF TRUTH ──────────
+   Extracted from calcString() so every consumer runs the SAME math instead of
+   re-implementing it: calcString() (String Sizing page), app/src/pages/Theory.jsx
+   (the Teorie/Anexa 1 worked example) and js/pt-doc.js (the Proiect Tehnic
+   "Breviar de calcul"). Touches NO DOM and NO state — plain inputs in, every
+   derived value + the eq.13/eq.14 verdicts out.
+   ⚠ Never copy these formulas into a consumer: a second copy drifts silently
+   (this function exists because the math had already been duplicated twice).
+   inp: { voc, vmp, isc, imp, lv, li, nmot, vinvmax, vrmppt, vmpptmin, vmpptmax,
+          impptmax, iscmppt, tamin, tamax, gmin, gmax } */
+function sizeString(inp) {
+  var voc = inp.voc, vmp = inp.vmp, isc = inp.isc, imp = inp.imp;
+  var lv = inp.lv, li = inp.li, nmot = inp.nmot;
+  var vinvmax = inp.vinvmax, vrmppt = inp.vrmppt, vmpptmin = inp.vmpptmin;
+  var impptmax = inp.impptmax, iscmppt = inp.iscmppt;
+  var tamin = inp.tamin, tamax = inp.tamax, gmin = inp.gmin, gmax = inp.gmax;
+
+  var nmot_lo = nmot * (1 - 0.03);                        // NMOT -3% tolerance -> coldest module (§11, eq.4 note)
+  var nmot_hi = nmot * (1 + 0.03);                        // NMOT +3% tolerance -> hottest module
+  var tmin    = tamin + (nmot_lo - 20) * gmin / 800;      // cell temp: cold site, low irr, NMOT-3%
+  var tmax    = tamax + (nmot_hi - 20) * gmax / 800;      // cell temp: hot site, peak irr, NMOT+3%
+  var voc_max = voc * (1 + lv / 100 * (tmin - 25));       // V_OC rises as cell cools
+  var voc_min = voc * (1 + lv / 100 * (tmax - 25));       // V_OC falls as cell heats
+  var vmp_min = vmp * (1 + lv / 100 * (tmax - 25));       // V_mp at hottest
+  var vmp_max = vmp * (1 + lv / 100 * (tmin - 25));       // V_mp at coldest
+  var isc_max = isc * (1 + li / 100 * (tmax - 25)) * gmax / 1000;   // I_SC peaks: hot + Gmax
+  var isc_min = isc * (1 + li / 100 * (tmin - 25)) * gmin / 1000;   // I_SC lowest: cold + Gmin
+  var imp_max = imp * (1 + li / 100 * (tmax - 25)) * gmax / 1000;   // I_mp operating: hot + Gmax
+  var imp_min = imp * (1 + li / 100 * (tmin - 25)) * gmin / 1000;   // I_mp operating: cold + Gmin
+
+  var ns_max = Math.floor(vinvmax / voc_max);
+  var ns_min = Math.ceil(vmpptmin / vmp_min);
+  var nopt   = Math.floor(vrmppt / vmp);
+  var np_sc  = Math.floor(iscmppt / isc_max);    // eq.10: inverter short-circuit tolerance
+  var np_op  = Math.floor(impptmax / imp_max);   // eq.9: MPPT max continuous current
+  var np_max = Math.min(np_sc, np_op);
+  var ok13   = imp_max <= impptmax;              // eq.13: Imp,max <= Imax,MPPT
+  var ok14   = isc_max <= iscmppt;               // eq.14: Isc,max <= Isc,MPPT
+  var recNs  = (ns_min <= nopt && nopt <= ns_max) ? nopt : Math.min(ns_max, Math.max(ns_min, nopt));
+
+  return { nmot_lo: nmot_lo, nmot_hi: nmot_hi, tmin: tmin, tmax: tmax,
+           voc_max: voc_max, voc_min: voc_min, vmp_max: vmp_max, vmp_min: vmp_min,
+           isc_max: isc_max, isc_min: isc_min, imp_max: imp_max, imp_min: imp_min,
+           ns_max: ns_max, ns_min: ns_min, nopt: nopt,
+           np_max: np_max, np_sc: np_sc, np_op: np_op,
+           ok13: ok13, ok14: ok14, recNs: recNs,
+           valid: ns_min <= ns_max && np_max >= 1 && ok13 && ok14 };
+}
+
 function calcString() {
   var ssSel = document.getElementById('ss-inverter');
   if (ssSel && isMicroInverter(ssSel.value)) { showMicroNote(); return; }
@@ -6410,33 +6505,12 @@ function calcString() {
   const gmin     = parseFloat(document.getElementById('ss-gmin').value);
   const gmax     = parseFloat(document.getElementById('ss-gmax').value);
 
-  const nmot_lo = nmot * (1 - 0.03);                              // NMOT −3% tolerance → coldest module (Neamț §11, eq.4 note)
-  const nmot_hi = nmot * (1 + 0.03);                              // NMOT +3% tolerance → hottest module
-  const tmin    = tamin + (nmot_lo - 20) * gmin / 800;           // cell temp: cold site, low irr, NMOT−3%
-  const tmax    = tamax + (nmot_hi - 20) * gmax / 800;           // cell temp: hot site, peak irr, NMOT+3%
-  const voc_max = voc * (1 + lv / 100 * (tmin - 25)); // V_OC rises as cell cools
-  const voc_min = voc * (1 + lv / 100 * (tmax - 25)); // V_OC falls as cell heats
-  const vmp_min = vmp * (1 + lv / 100 * (tmax - 25)); // V_mp at hottest
-  const vmp_max = vmp * (1 + lv / 100 * (tmin - 25)); // V_mp at coldest
-  const isc_max = isc * (1 + li / 100 * (tmax - 25)) * gmax / 1000; // I_SC peaks: hot + Gmax
-  const isc_min = isc * (1 + li / 100 * (tmin - 25)) * gmin / 1000; // I_SC lowest: cold + Gmin
-  const imp_max = imp * (1 + li / 100 * (tmax - 25)) * gmax / 1000; // I_mp operating: hot + Gmax
-  const imp_min = imp * (1 + li / 100 * (tmin - 25)) * gmin / 1000; // I_mp operating: cold + Gmin
-
-  const ns_max  = Math.floor(vinvmax / voc_max);
-  const ns_min  = Math.ceil(vmpptmin / vmp_min);
-  const nopt    = Math.floor(vrmppt / vmp);
-  // Np limited by inverter's short-circuit current tolerance (fault protection) - eq.10: Isc,MPPT / Isc,max
-  const np_sc   = Math.floor(iscmppt / isc_max);
-  // Np additionally limited by MPPT's max continuous operating current (Np × Imp,max ≤ Imax,MPPT) - eq.9
-  const np_op   = Math.floor(impptmax / imp_max);
-  const np_max  = Math.min(np_sc, np_op);
-  // Single-string current checks (one string per MPPT input) - eq.13 & eq.14
-  const ok13    = imp_max <= impptmax;   // Imp,max ≤ Imax,MPPT
-  const ok14    = isc_max <= iscmppt;    // Isc,max ≤ Isc,MPPT
-
-  const inp = { voc, vmp, isc, imp, lv, li, nmot, nmot_lo, nmot_hi, vinvmax, vrmppt, vmpptmin, vmpptmax, impptmax, iscmppt, tamin, tamax, gmin, gmax };
-  const res = { tmin, tmax, voc_max, voc_min, vmp_max, vmp_min, isc_max, isc_min, imp_max, imp_min, ns_max, ns_min, nopt, np_max, np_sc, np_op, ok13, ok14 };
+  /* All §11 math lives in the shared sizeString() below - do NOT re-implement it here.
+     inp keeps nmot_lo/nmot_hi because renderStringResults() displays the tolerance. */
+  const inp = { voc, vmp, isc, imp, lv, li, nmot, vinvmax, vrmppt, vmpptmin, vmpptmax, impptmax, iscmppt, tamin, tamax, gmin, gmax };
+  const res = sizeString(inp);
+  const { nmot_lo, nmot_hi, tmin, tmax, voc_max, vmp_min, ns_max, ns_min, nopt, np_max, ok13, ok14 } = res;
+  inp.nmot_lo = nmot_lo; inp.nmot_hi = nmot_hi;
   renderStringResults(inp, res);
 
   /* Persist the §11 headline results so the project report (step 24) can show them.

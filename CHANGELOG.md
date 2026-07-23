@@ -5,6 +5,125 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.9] - Proiect Tehnic: breviar de calcul + chapter 6 sections + 2 new equipment rows
+
+- **ANEXA 1 now contains a real "Breviar de calcul - dimensionarea șirurilor"**: PER STRING, each §11
+  relation is printed as **formula → numeric substitution → result** (Tc,min, Tc,max, Voc,max, Vmp,min,
+  Isc,max, Imp,max, Voc,șir), followed by the Ns,min/Ns,max window against the adopted Ns/Np and an
+  explicit **verdict** checking Voc,șir ≤ Umax,cc and the MPPT current limits. A failing configuration
+  renders in red. This is what a verifier needs to re-check the sizing by hand.
+- **`sizeString()` extracted into `js/string-ui.js` as the single source of truth for the §11 math.**
+  It was previously implemented TWICE - inside the DOM-bound `calcString()` and again inline in
+  `app/src/pages/Theory.jsx` - so a formula change could silently drift between the app and the document.
+  Now `calcString()`, `Theory.jsx` and `pt-doc.js` all call the one pure function (no DOM, no state:
+  inputs in, all derived values + the eq.13/eq.14 verdicts out).
+  **Verified behaviour-preserving**: the extracted function was diffed against the original inline
+  formulas over 3,000 randomized input sets × 22 outputs - identical on every one. Strings page and
+  Teorie page re-verified in the browser (both now report Voc,max = 51.13 V for the same project).
+- **`fnum4()` added to pt-doc.js** for values where 2 dp collapses the information. The breviar's
+  substitution lines print temperature coefficients at 4 dp: βVoc = -0.265 %/°C was rendering as
+  "-0.27", so hand-checking the printed substitution gave 51.22 V while the printed result said
+  51.13 V. The displayed arithmetic now reproduces the displayed result (dev-guide typography rule).
+
+## [1.2.9] - Proiect Tehnic: chapter 6 sections + LONGi Hi-MO 5m LR5-66HPH-515M
+
+- **New module: LONGi Hi-MO 5m LR5-66HPH-515M (515 W)** - 132 half-cut cells (6×22), 9-busbar,
+  MlO gallium-doped PERC, monofacial, 2094×1134×35 mm, 26.0 kg. Values read from the OFFICIAL
+  LONGi datasheet "LR5-66HPH 495~515M" (515M column), not estimated: Voc 46.00 V, Isc 14.13 A,
+  Vmp 38.83 V, Imp 13.27 A, γPmax −0.34 %/°C, TC(Voc) −0.265 %/°C, TC(Isc) +0.05 %/°C, NMOT 45 °C,
+  max series fuse 25 A, efficiency 21.7 %. Cross-checked: Vmp×Imp = 515.3 W ≈ Pmax, and the
+  efficiency implied by the dimensions (21.69 %) matches the datasheet's 21.7 %.
+  Catalog regenerated → **120 modules**.
+  > ⚠ The request named "LR5-66HTH-515M", which **does not exist**: the HTH series (Hi-MO X6
+  > Explorer, HPBC) datasheet is 520~540M and comparepv lists 415-440 / 520-585 W for it - no 515 W
+  > variant. The real LONGi 66-cell 515 W module is the **HPH** (Hi-MO 5m, PERC) one added here.
+  > It is absent from comparepv, so it carries no `cpv` flag.
+- **New inverter: Huawei SUN2000-10K-MAP0 (10 kW)** - three-phase hybrid Smart Energy Controller,
+  LUNA2000-S0/S1 compatible. Values from the OFFICIAL Huawei datasheet "SUN2000-5/6/8/10/12K-MAP0"
+  (v02-202406, 10K column): max DC input 1100 V, MPPT range 160-1000 V, rated 600 V, 16 A per MPPT,
+  22 A max short-circuit, 2 MPP trackers, 10,000 W AC, 98.6 % max efficiency, recommended max PV 18 kWp.
+  > ⚠ That datasheet lists a SECOND "operating voltage range 600~980 V" under **Input (DC Battery)** -
+  > it is the LUNA2000 battery window, NOT the PV MPPT range. Recording it as the MPPT range would have
+  > silently broken every string-sizing calculation using this inverter.
+- Catalog regenerated after both additions → **manifest v5: 120 modules, 226 inverters**. Only the changed
+  registry got a new hashed file (modules kept `modules.a6c97c2b.json`), so devices re-download just the
+  inverter list - the partial-sync design working as intended. Both reach existing installs via the
+  catalog sync **without an app release**.
+
+## [1.2.9] - Proiect Tehnic: chapter 6 gains the missing "Date tehnice de intrare" section
+
+- **6.1 DATE TEHNICE DE INTRARE was missing from the document** - the heading text existed in both
+  `pt-text-ro.js` and `pt-text-en.js` (`prezentare.sIntrare`) but `pt-doc.js` never rendered it, so the
+  whole section silently never appeared. Benchmarked chapter 6 against a real-world PTh memoriu; this
+  was the largest gap. Now rendered as the FIRST sub-section of chapter 6 (everything after it renumbers).
+- Contents, all AUTO-FILLED (no new input): a parameter/value table with **Pi (module fotovoltaice)**
+  [Σ module pmax], **Pi (invertoare)** [Σ inverter pac, W→kW], **Un** [from the racord voltage entered in
+  kV], **f = 50 Hz** and **cos φ > 0,99** (fixed grid-compliance statements), followed by the occupied
+  area + panel orientation sentence and the "branșamentul nu face obiectul documentației" scope disclaimer.
+- **Occupied area comes from the shared `MountingSVG.build()`**, which now also returns the array
+  FOOTPRINT (`wide`/`deep`/`area`) - rows × pitch × width INCLUDING the inter-row shading gaps (E-W and
+  coplanar rows step by the footprint instead). It is the same extent the top view prints, so the chapter
+  figure and the IE005 plate dimension can never disagree (verified: 11.34 × 13.56 m → 154 m²).
+- Panel orientation is named as a cardinal direction by a new `orientName()` in pt-doc.js, honouring the
+  PVGIS azimuth convention (0 = S, -90 = E, +90 = V). Multi-orientation systems (E-W tents) join their
+  distinct names ("E/V") instead of claiming a single direction.
+- **New sub-section "CARACTERISTICI TEHNICE INVERTOARE"** (after the string configuration): the MPP-tracker
+  window a verifier checks the string sizing against - rated AC power, max DC input voltage, number of MPP
+  trackers, MPPT voltage range, max input current and max short-circuit current per MPPT. Values come
+  straight from `INVERTER_LIST` (datasheet scrape), so an absent field prints "-" (a database gap) instead
+  of the red "[de completat]" user-input marker. **One value column PER INVERTER UNIT** (I1, I2, …), so a
+  multi-inverter BOM lists each unit's own specs; a single inverter collapses to a plain "Valoare" column.
+- **"Soluția propusă pentru racordare" is now DERIVED, not just free text.** It used to be a bare
+  passthrough of the `grid.ptAlimentare` textarea. It now opens with the connection statement (voltage
+  level, board, cable material and length), a **per-inverter table** (P c.a. / I c.a. / secțiune /
+  disjunctor / ΔU), the common-RCD note, the active-power-limiting paragraph (only for the no-injection
+  regime) and a cross-reference to **planșa IE002** — with the engineer's own free text appended for the
+  site-specific routing the tool cannot know.
+- **The Conexiuni step now PERSISTS what it computes** (`connections.ac` = `[{pac,iac,section,mcb,drop}]`,
+  one entry per inverter): its pure AC sizing was lifted out of the HTML builder into `acLinesFor()` and is
+  saved in its own effect - deliberately WITHOUT the input-persist effect's first-render skip, so the
+  numbers exist even when the engineer only opens the step without editing. This is the same pattern the
+  mounting step already used, and it means the PT never re-derives the sizing (no formula drift).
+- **The parts list gained the missing amp ratings** as a direct consequence: switchboard rows now read
+  "Disjunctor c.a. (MCB) 25 A" with per-rating quantities instead of a bare count.
+- Still missing vs the reference memoriu (deliberately deferred, mostly site-survey text the tool cannot
+  compute): sub-sections for available surfaces / relief / access + neighbouring relations, climate zone +
+  mean temperature, irradiation quoted as H (kWh/m², the engine does not persist it yet), utilities +
+  pollution sources, and "situația existentă". The DC string fuse ratings are still not persisted either,
+  so the parts list's gPV fuse row remains a count without a rating.
+
+## [1.2.8] - Proiect Tehnic: planșele IE002 + IE005 are now DRAWN (schematic + mounting views)
+
+- **The single-line schematic IS planșa IE002 now.** It used to be emitted as an extra unnamed "lead"
+  plate BEFORE the borderou list, while `Schemă monofilară racord (IE002)` sat next to it as an empty
+  "se anexează" placeholder - two plates for one drawing. The schematic is now emitted at the IE002
+  position inside the borderou loop, so the plates follow the borderou order (IE001 … IE005) and the
+  duplicate placeholder is gone (document 22 → 21 pages).
+- **The schematic's title block is stamped with the plate id**: new `SchemaSVG.build({plateNo})` renders
+  `<codDoc> · Planșa IE002` in the title cell instead of `pag. 1/1`. Standalone (the schema editor and
+  its SVG export) is unchanged and still reads `pag. 1/1` - correct there, since the drawing IS its own
+  one-page document; inside a 21-page PT it is a numbered plate.
+
+- **`Plan amplasament panouri fotovoltaice` (IE005) is no longer an empty "se anexează" placeholder** —
+  it now carries the two to-scale mounting drawings: **Secțiune laterală** (side section, with the
+  winter-solstice shading geometry β/α/X/Y/pitch) and **Vedere de sus** (the rows × per-row module grid),
+  above the plate's cartouche.
+- **New shared engine `js/mounting-svg.js` (`window.MountingSVG`)** — the four to-scale view builders
+  (`sideSingle`/`sideAccordion`/`sideFlush`/`planSVG`) extracted verbatim from the mounting step so the
+  EDITOR and the PT render ONE drawing (the same single-source-of-truth pattern as `schema-svg.js`).
+  `MountingSVG.build()` needs no DOM: it rebuilds both views from `Project.section('mounting')` (which the
+  mounting step already persists: tilt/mode/orient/rise/gap/pitch/sunAlt/rows/perRow) plus the string's
+  module dimensions. `app/src/pages/Mounting.jsx` now delegates to it (126 lines of duplicated drawing
+  code removed; its dead `line`/`arc` helpers dropped).
+- Plate labels `planse.viewSide`/`viewPlan`/`noPlan` (RO/EN); the drawing is labelled in the DOCUMENT's
+  language via a new `uiTxt()` lookup in pt-doc.js (the `mnt.*` keys live in the UI dictionaries, not
+  PT_TEXT). Print-safe ink overrides for the `.svg-*` theme classes in `Pt.css` (they resolve to theme
+  vars, which would be invisible on the white A4 sheet).
+- Both drawn plates fall back to the "se anexează" placeholder + a pre-flight entry when their source step
+  has no data yet; IE005's top view degrades to a note when the mounting area dimensions are missing.
+  **IE001** (site plan - needs a map/cadastral export, not a computed drawing), **IE003** (TE-CEF) and
+  **IE004** (TE-CC) remain placeholders.
+
 ## [1.2.7] - Proiect Tehnic: new "Lista de cantități" chapter (bill of quantities)
 
 - The PT document now generates a **Lista de cantități** chapter (parts list / BoQ) — cap. 9, right after

@@ -1,14 +1,14 @@
 {
-  "version": 3,
-  "date": "2026-07-22",
+  "version": 5,
+  "date": "2026-07-23",
   "files": {
-    "modules": "modules.d57e08fe.json",
-    "inverters": "inverters.c7fb3b02.json",
+    "modules": "modules.a6c97c2b.json",
+    "inverters": "inverters.6f03f40b.json",
     "batteries": "batteries.b507f97f.json"
   },
   "counts": {
-    "modules": 119,
-    "inverters": 225,
+    "modules": 120,
+    "inverters": 226,
     "batteries": 19
   }
 }

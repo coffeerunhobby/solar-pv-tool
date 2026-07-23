@@ -31,14 +31,17 @@ export default function Theory() {
   const imp   = ss.imp   != null ? +ss.imp   : 12.9;
   const li    = ss.li    != null ? +ss.li    : 0.05;
 
-  const nmotLo = nmot * (1 - 0.03);                                   // cold module (NMOT -3%)
-  const nmotHi = nmot * (1 + 0.03);                                   // hot module  (NMOT +3%)
-  const tcmin  = tamin + (nmotLo - 20) * gmin / 800;
-  const tcmax  = tamax + (nmotHi - 20) * gmax / 800;
-  const vocmax = voc * (1 + lv / 100 * (tcmin - 25));                 // V_OC rises as the cell cools
-  const vmpmin = vmp * (1 + lv / 100 * (tcmax - 25));                 // V_mp falls as the cell heats
-  const iscmax = isc * (1 + li / 100 * (tcmax - 25)) * gmax / 1000;   // I_SC peaks: hot + Gmax
-  const impmax = imp * (1 + li / 100 * (tcmax - 25)) * gmax / 1000;   // I_mp operating peak: hot + Gmax
+  /* §11 math comes from the SHARED sizeString() (string-ui.js classic global) — the very
+     same function calcString() and the Proiect Tehnic "Breviar de calcul" call, so this
+     worked example can never drift from the Strings page. Only the module + site inputs
+     matter here; sizeString's inverter-window outputs (ns/np) are unused on this page. */
+  const S = sizeString({ voc, vmp, isc, imp, lv, li, nmot, tamin, tamax, gmin, gmax });
+  const nmotLo = S.nmot_lo, nmotHi = S.nmot_hi;   // cold (NMOT -3%) / hot (NMOT +3%) module
+  const tcmin  = S.tmin,    tcmax  = S.tmax;
+  const vocmax = S.voc_max;                        // V_OC rises as the cell cools
+  const vmpmin = S.vmp_min;                        // V_mp falls as the cell heats
+  const iscmax = S.isc_max;                        // I_SC peaks: hot + Gmax
+  const impmax = S.imp_max;                        // I_mp operating peak: hot + Gmax
 
   return (
     <>

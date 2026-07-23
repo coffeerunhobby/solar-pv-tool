@@ -88,6 +88,26 @@
 .pt-cartus { width: 100%; border-collapse: collapse; font-size: 8.5pt; font-family: Arial, sans-serif; margin-top: 2mm; }
 .pt-cartus td { border: 0.8px solid #555; padding: 1.6mm 2mm; }
 
+/* Drawn plate (IE005): the to-scale mounting views from the shared MountingSVG.
+   Those SVGs are styled by the .svg-* classes in Mounting.css, whose colours are
+   THEME variables — on this white paper sheet the dark-theme values would be
+   invisible, so pin them to print-safe inks here (the sheet is always light). */
+.pt-pl-draw { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4mm; min-height: 0; }
+.pt-pl-view { border: 0.6px solid #bbb; border-radius: 1.5mm; padding: 3mm 3mm 1mm; }
+.pt-pl-vt { font-family: Arial, sans-serif; font-size: 9pt; font-weight: 700; color: #333; margin-bottom: 1mm; }
+.pt-pl-view svg { display: block; width: 100%; height: auto; }
+.pt-pl-nodata { font-family: Arial, sans-serif; font-size: 9pt; color: #888; padding: 6mm 2mm; text-align: center; }
+.pt-plansa .svg-ground { stroke: #555; }
+.pt-plansa .svg-mod    { stroke: #1f6feb; }
+.pt-plansa .svg-dim    { stroke: #777; }
+.pt-plansa .svg-dimtxt { fill: #333; }
+.pt-plansa .svg-ang    { fill: #1f6feb; color: #1f6feb; }
+.pt-plansa .svg-angsun { fill: #b8791a; color: #b8791a; }
+.pt-plansa .svg-sun    { stroke: #e0a020; }
+.pt-plansa .svg-shadow { fill: rgba(231,76,60,.10); stroke: rgba(231,76,60,.55); }
+/* the module rectangles in the top view are filled with the theme accent inline */
+.pt-plansa .pt-pl-view rect[fill="var(--clr-primary)"] { fill: #1f6feb; }
+
 @media print {
   /* @page { size: A4; margin: 0 } lives in a runtime-injected <style> (Pt.jsx
      mount effect) — an @page rule cannot be scoped by body[data-page] and this

@@ -138,6 +138,7 @@ JS_FILES=(
   i18n_en.js
   i18n_ro.js
   iec-symbols.js
+  mounting-svg.js
   pt-doc.js
   pt-text-ro.js
   pt-text-en.js

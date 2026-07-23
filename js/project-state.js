@@ -105,7 +105,10 @@ const Project = (function () {
                      stringId: null,                                     // which string §11 analysed
                      stringVocCold: null, valid: null },
       connections: { cables: {}, dropDC: null, phases: null, matAC: null, // step 9 - electrical connections
-                     lenAC: null, dropAC: null },                         // cables = { stringId: one-way m }
+                     lenAC: null, dropAC: null,                           // cables = { stringId: one-way m }
+                     ac: [] },                                            // COMPUTED per inverter: [{pac,iac,section,mcb,drop}] -
+                                                                          // persisted by Connections.jsx so the PT (cap. "Soluția de
+                                                                          // racordare") + parts list quote them without re-deriving
       protections: { net: null, iccKA: null, distDC: null, distAC: null, // step 10 - switchgear/protection design inputs
                      iprodFV: null, iprodInv: null, bodyOverride: '' },   // datasheet fuse caps + manual fuse-body format override
       economics:   { currency: 'RON', wProdReal: null, wProdOptim: null, wConsum: null,  // step 11 - Analiză economică
